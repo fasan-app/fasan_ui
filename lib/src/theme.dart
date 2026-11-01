@@ -238,11 +238,13 @@ abstract final class FasanThemes {
       surfaceContainerHighest: l.surfaceAlt,
     );
     final scale = s.simpleProfile ? 1.12 : 1.0;
+    // Package fonts are addressed as 'packages/<package>/<family>' (api.flutter.dev, TextStyle "Font family" / package).
+    final family = l.fontFamily == null ? null : 'packages/${l.fontPackage}/${l.fontFamily}';
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: l.background,
-      fontFamily: l.fontFamily == null ? null : 'packages/${l.fontPackage}/${l.fontFamily}',
+      fontFamily: family,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
@@ -250,7 +252,9 @@ abstract final class FasanThemes {
       extensions: [l],
     );
     TextStyle t(double size, FontWeight w, {double h = 1.3, double ls = 0, Color? c}) =>
-        TextStyle(fontSize: size * scale, fontWeight: w, height: h, letterSpacing: ls, color: c ?? l.text);
+        // fontFamily must be repeated: these styles replace the ones ThemeData(fontFamily:) filled in, and a new
+        // TextStyle without a family falls back to the platform font (bug in 0.1: Inter/Geist never showed).
+        TextStyle(fontFamily: family, fontSize: size * scale, fontWeight: w, height: h, letterSpacing: ls, color: c ?? l.text);
     final cine = s.style.cinematic;
     return base.copyWith(
       textTheme: base.textTheme.copyWith(
@@ -277,7 +281,12 @@ abstract final class FasanThemes {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: l.surfaceAlt,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(l.radius * 0.6), borderSide: BorderSide.none),
+        // Not OutlineInputBorder: with an outline the floating label is centred on the top edge, half outside the
+        // filled field, and gets clipped at the top of a list (Flutter input_decorator.dart, outlinedFloatingY).
+        border: UnderlineInputBorder(borderRadius: BorderRadius.circular(l.radius * 0.6), borderSide: BorderSide.none),
+        enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(l.radius * 0.6), borderSide: BorderSide.none),
+        // Visible focus (WCAG 2.4.7): accent line at the bottom edge.
+        focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(l.radius * 0.6), borderSide: BorderSide(color: l.accent, width: 2)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       appBarTheme: AppBarTheme(

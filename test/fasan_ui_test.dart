@@ -55,6 +55,17 @@ void main() {
     });
   });
 
+  test('Gewählte Schrift gilt für alle Textstile (Fehler in 0.1)', () {
+    for (final (font, family) in [(FasanFont.inter, 'packages/fasan_ui/FasanInter'), (FasanFont.geist, 'packages/fasan_ui/FasanGeist'), (FasanFont.system, null)]) {
+      for (final style in FasanStyle.values) {
+        final t = FasanThemes.theme(FasanSettings(font: font, style: style), Brightness.light, FasanPowerLevel.full).textTheme;
+        for (final ts in [t.displaySmall, t.headlineSmall, t.titleLarge, t.titleMedium, t.bodyLarge, t.bodyMedium, t.bodySmall, t.labelLarge, t.labelMedium]) {
+          expect(ts?.fontFamily, family, reason: '$font $style');
+        }
+      }
+    }
+  });
+
   test('Einstellungen speichern und laden', () {
     const s = FasanSettings(style: FasanStyle.spy, accent: FasanAccent.sage, font: FasanFont.geist, battery: FasanBatteryMode.maximum, effects: FilmEffectSettings(grain: 0.7));
     final d = FasanSettings.decode(s.encode());
