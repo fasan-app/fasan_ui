@@ -119,7 +119,7 @@ class _FasanFilmState extends State<FasanFilm> with SingleTickerProviderStateMix
           Positioned.fill(
             child: IgnorePointer(
               child: RepaintBoundary(
-                child: CustomPaint(painter: _GrainPainter(grain, animate ? _time : 0, fx.grain, look.brightness)),
+                child: CustomPaint(painter: _GrainPainter(grain, animate ? _time : 0, fx.grain, look.brightness, MediaQuery.devicePixelRatioOf(context))),
               ),
             ),
           ),
@@ -131,10 +131,10 @@ class _FasanFilmState extends State<FasanFilm> with SingleTickerProviderStateMix
 }
 
 class _GrainPainter extends CustomPainter {
-  _GrainPainter(this.shader, this.time, this.amount, this.brightness);
+  _GrainPainter(this.shader, this.time, this.amount, this.brightness, this.dpr);
 
   final ui.FragmentShader shader;
-  final double time, amount;
+  final double time, amount, dpr;
   final Brightness brightness;
 
   @override
@@ -145,10 +145,13 @@ class _GrainPainter extends CustomPainter {
       ..setFloat(2, time)
       // Grain reads stronger on light backgrounds; slightly less there keeps text calm.
       ..setFloat(3, amount * (brightness == Brightness.dark ? 1.0 : 0.7))
+      // Grain cell size. FlutterFragCoord gives local coordinates, unlike gl_FragCoord (screen space)
+      // (docs.flutter.dev/ui/design/graphics/fragment-shaders); whether these are logical or physical pixels on the
+      // device is nicht geprüft – the dpr is passed along so a future fix needs no API change.
       ..setFloat(4, 1.6);
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
 
   @override
-  bool shouldRepaint(_GrainPainter old) => old.time != time || old.amount != amount || old.brightness != brightness;
+  bool shouldRepaint(_GrainPainter old) => old.time != time || old.amount != amount || old.brightness != brightness || old.dpr != dpr;
 }
