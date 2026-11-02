@@ -105,3 +105,8 @@ Bildrate. Abnahme: Emulator-Bildschirmfotos A/B/C hell und dunkel mit echtem Bon
 5. Kino: eigene Recherche; Film-Voreinstellungen nach bekannten Kameras/Filmen (z. B. ARRI, alte analoge Hasselblad,
    Fuji-Filmsimulationen) als Vorauswahl, alles weiter einstellbar. Vignette ist in jedem Stil zuschaltbar (erledigt).
 Jeder Stil soll eindrucksvoll sein; die Familie bekommt später weitere Stile, also je Stil Recherche.
+6. Leistungstest (familienweit in fasan_ui): ein Modus, der alle Effekte einzeln und zusammen intern misst (Bildzeiten
+   build/raster aus FrameTiming, Sensortakt, Glas-Stufe, Gerät), das Ergebnis als Datei exportierbar (Teilen/Speichern wie
+   das Protokoll). Daraus empfohlene Einstellungen laden; beim Einschalten eines zu teuren Effekts warnen.
+7. Globale Overlays (Meldungen/SnackBar, Dialoge, Sheets, z. B. „Du hast die neueste Version“) folgen dem Stil;
+   bisher schwarzer Kasten (SnackBarTheme fehlt im Theme).
