@@ -101,7 +101,7 @@ class _FasanFilmState extends State<FasanFilm> with SingleTickerProviderStateMix
       );
     }
     final grain = _grain;
-    if (grain != null && (fx.grain > 0 || fx.oldFilmFor(st.look.style))) {
+    if (grain != null && (fx.grain > 0 || fx.vignetteOn || fx.oldFilmFor(st.look.style))) {
       w = Stack(fit: StackFit.passthrough, children: [
         w,
         Positioned.fill(
@@ -167,7 +167,7 @@ class FasanGrainPainter extends CustomPainter {
       ..setFloat(11, fx.flicker * old)
       ..setFloat(12, fx.dust * old)
       ..setFloat(13, fx.scratches * old)
-      ..setFloat(14, fx.vignette * old)
+      ..setFloat(14, fx.vignette * (oldFilm || fx.vignetteOn ? 1 : 0))
       ..setFloat(15, fx.warmth * old);
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }

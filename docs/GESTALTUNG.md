@@ -91,3 +91,17 @@ Emulator 02.11. (0.1.13): Korn 0,35 bei 2 px wirkte wie Schleifpapier und verdec
 
 Effekt-Testseite (Einstellungen → Aussehen → Effekte prüfen): jeder Effekt einzeln, Neigungswerte, Ereignisrate,
 Bildrate. Abnahme: Emulator-Bildschirmfotos A/B/C hell und dunkel mit echtem Bon, dann S23.
+
+## 9. Aufträge des Nutzers (02.11. abends) – gilt für die ganze Fasan-Familie, Umsetzung in fasan_ui
+
+Übernommen: alle Vorschläge aus den Recherchen (Lebendig/Warten, Papier, Braun-Technik). Reihenfolge:
+1. Lebendig und Warten (`recherche/2026-11-02-lebendig-warten.md`).
+2. Haptik und Klang: Auf dem S23 war nirgends Vibration spürbar, Klang fehlt ganz. Ursache nicht geprüft
+   (HapticFeedback-Konstanten vs. Samsung-Einstellung „Berührungsrückmeldung“; Doku Android HapticFeedbackConstants und
+   Flutter HapticFeedback/SystemSound lesen). Klang leise, abschaltbar, folgt dem Lautlos-Modus.
+3. Glas 3D: Spiegelungen der umliegenden Elemente, die sich beim Scrollen darunter ändern; Ebenen mit z-Höhe; echte
+   Schatten bestimmter Elemente, die mit der Neigung wandern. Muss „spektakulär smooth“ sein; auf S23 messen.
+4. Papier, dann Braun-Technik (`recherche/2026-11-02-stil-papier.md`, `…-stil-braun-technik.md`).
+5. Kino: eigene Recherche; Film-Voreinstellungen nach bekannten Kameras/Filmen (z. B. ARRI, alte analoge Hasselblad,
+   Fuji-Filmsimulationen) als Vorauswahl, alles weiter einstellbar. Vignette ist in jedem Stil zuschaltbar (erledigt).
+Jeder Stil soll eindrucksvoll sein; die Familie bekommt später weitere Stile, also je Stil Recherche.

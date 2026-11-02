@@ -109,7 +109,7 @@ class _FasanBackdropState extends State<FasanBackdrop> with SingleTickerProvider
     if (!moving) _time.value = 0;
     _holdTilt(st.tilt && fx.bleed > 0);
     final oldFilm = fx.oldFilmFor(l.style);
-    final grainHere = (fx.grain > 0 || oldFilm) && (fx.layer == FasanFilmLayer.ground || !FasanFilm.coversWhole(context));
+    final grainHere = (fx.grain > 0 || oldFilm || fx.vignetteOn) && (fx.layer == FasanFilmLayer.ground || !FasanFilm.coversWhole(context));
     final grain = _grain;
     Widget ground = CustomPaint(
       painter: _GroundPainter(

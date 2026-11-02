@@ -199,6 +199,13 @@ class FasanAppearancePage extends StatelessWidget {
             label: t.oldFilmName,
             onChanged: (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(oldFilm: v))),
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t.vignette),
+            value: s.effects.vignetteOn || s.effects.oldFilmFor(s.style),
+            onChanged: s.effects.oldFilmFor(s.style) ? null : (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(vignetteOn: v))),
+          ),
+          if (s.effects.vignetteOn && !s.effects.oldFilmFor(s.style)) slider(t.vignette, s.effects.vignette, (x) => s.effects.copyWith(vignette: x)),
           if (s.effects.oldFilmFor(s.style)) ...[
             slider(t.flicker, s.effects.flicker, (x) => s.effects.copyWith(flicker: x)),
             slider(t.dust, s.effects.dust, (x) => s.effects.copyWith(dust: x)),

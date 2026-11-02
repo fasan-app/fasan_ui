@@ -71,6 +71,7 @@ class FilmEffectSettings {
     this.scratches = 0.25,
     this.vignette = 0.4,
     this.warmth = 0.3,
+    this.vignetteOn = false,
     this.glow = 0.5,
     this.halation = 0.35,
     this.bleed = 0.25,
@@ -90,6 +91,9 @@ class FilmEffectSettings {
   /// Old-film switch and amounts (0–1) of its parts.
   final FasanOldFilm oldFilm;
   final double flicker, dust, scratches, vignette, warmth;
+
+  /// Vignette in every style, independent of the old-film look (Nutzer 02.11.).
+  final bool vignetteOn;
   final FasanFilmLayer layer;
 
   /// Animated colour field behind content, wandering light band, light edge following the device tilt.
@@ -120,6 +124,7 @@ class FilmEffectSettings {
     double? scratches,
     double? vignette,
     double? warmth,
+    bool? vignetteOn,
     double? glow,
     double? halation,
     double? bleed,
@@ -143,6 +148,7 @@ class FilmEffectSettings {
         scratches: scratches ?? this.scratches,
         vignette: vignette ?? this.vignette,
         warmth: warmth ?? this.warmth,
+        vignetteOn: vignetteOn ?? this.vignetteOn,
         glow: glow ?? this.glow,
         halation: halation ?? this.halation,
         bleed: bleed ?? this.bleed,
@@ -168,6 +174,7 @@ class FilmEffectSettings {
         'scratches': scratches,
         'vignette': vignette,
         'warmth': warmth,
+        'vignetteOn': vignetteOn,
         'glow': glow,
         'halation': halation,
         'bleed': bleed,
@@ -199,6 +206,7 @@ class FilmEffectSettings {
       scratches: d('scratches', z.scratches),
       vignette: d('vignette', z.vignette),
       warmth: d('warmth', z.warmth),
+      vignetteOn: b('vignetteOn', z.vignetteOn),
       glow: d('glow', z.glow),
       halation: d('halation', z.halation),
       bleed: d('bleed', z.bleed),
