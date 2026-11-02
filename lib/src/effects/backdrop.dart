@@ -16,6 +16,7 @@ import '../settings.dart';
 import '../theme.dart';
 import '../tilt.dart';
 import 'film.dart';
+import 'glass_shader.dart';
 
 /// One clock for all effects, so the ground continues seamlessly across routes and previews.
 abstract final class FasanClock {
@@ -134,9 +135,11 @@ class _FasanBackdropState extends State<FasanBackdrop> with SingleTickerProvider
         child: Transform.scale(scale: 1.012, child: ground),
       );
     }
-    return Stack(fit: StackFit.passthrough, children: [
+    return Stack(fit: StackFit.passthrough, clipBehavior: Clip.none, children: [
       Positioned.fill(child: IgnorePointer(child: ClipRect(child: RepaintBoundary(child: ground)))),
       widget.child,
+      // start-up test of the refracting glass, outside the visible area (glass_shader.dart)
+      const Positioned(left: -64, top: -64, width: 32, height: 32, child: IgnorePointer(child: FasanGlassProbe())),
     ]);
   }
 }

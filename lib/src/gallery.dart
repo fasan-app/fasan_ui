@@ -8,6 +8,7 @@ import 'package:flutter/scheduler.dart';
 
 import 'effects/backdrop.dart';
 import 'effects/film.dart';
+import 'effects/glass_shader.dart';
 import 'power.dart';
 import 'scope.dart';
 import 'settings.dart';
@@ -513,6 +514,8 @@ class _FasanEffectLabState extends State<FasanEffectLab> {
         ],
         const SizedBox(height: FasanSpace.s),
         Text('${t.labFps}: ${_fps.toStringAsFixed(0)} · ${t.grainSize}: ${fx.grainPx.toStringAsFixed(1)} px', style: l.mono(13, color: l.text)),
+        // glass stage chosen by the start-up probe (glass_shader.dart)
+        Text('Glas: ${FasanGlassShader.tier.value.name}${FasanGlassShader.reason == null ? '' : ' · ${FasanGlassShader.reason}'}', style: l.mono(13, color: l.text)),
       ]),
     );
   }

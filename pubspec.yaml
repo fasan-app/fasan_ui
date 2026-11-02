@@ -27,6 +27,7 @@ flutter:
         pluginClass: FasanUiPlugin
   shaders:
     - shaders/grain.frag
+    - shaders/glass.frag
   fonts:
     # SIL Open Font License 1.1 (fonts/OFL-*.txt)
     - family: FasanInter

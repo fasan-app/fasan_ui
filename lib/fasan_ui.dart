@@ -3,6 +3,7 @@ library;
 
 export 'src/effects/backdrop.dart';
 export 'src/effects/film.dart';
+export 'src/effects/glass_shader.dart';
 export 'src/gallery.dart';
 export 'src/power.dart';
 export 'src/scope.dart';

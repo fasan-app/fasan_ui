@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../tokens.dart';
 import '../tilt.dart';
 import '../effects/backdrop.dart';
+import '../effects/glass_shader.dart';
 
 /// Glass panel for the control layer (bars, sheets). Never for content (Apple HIG Liquid Glass: separate layer).
 ///
@@ -38,6 +39,35 @@ class FasanGlass extends StatefulWidget {
 class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateMixin {
   late final AnimationController _in = AnimationController(vsync: this, duration: FasanDurations.long);
   bool _tiltHeld = false;
+  ui.FragmentShader? _shader;
+
+  @override
+  void initState() {
+    super.initState();
+    FasanGlassShader.tier.addListener(_tierChanged);
+    if (FasanGlassShader.usable) _shader = FasanGlassShader.program!.fragmentShader();
+  }
+
+  void _tierChanged() {
+    final want = FasanGlassShader.usable;
+    if (want && _shader == null) {
+      setState(() => _shader = FasanGlassShader.program!.fragmentShader());
+    } else if (!want && _shader != null) {
+      _shader!.dispose();
+      setState(() => _shader = null);
+    }
+  }
+
+  /// Stage S0: the rim bends the (already blurred) background; light direction follows the tilt. Materializes by
+  /// raising thickness and light with k (Session 219: „modulating the light bending and lensing“).
+  Widget _refraction(BorderRadius r, Offset tilt, double k, Widget child) {
+    final s = _shader;
+    if (s == null) return child;
+    final a = -3 * math.pi / 4 + (tilt.dx - tilt.dy) * 35 * math.pi / 180;
+    FasanGlassShader.configure(s,
+        radius: r.topLeft.x, bevel: 16, thickness: 12 * k + 4 * widget.highlight, light: Offset(math.cos(a), math.sin(a)), spec: 0.9 * k);
+    return BackdropFilter(filter: ui.ImageFilter.shader(s), child: child);
+  }
 
   @override
   void didChangeDependencies() {
@@ -55,6 +85,8 @@ class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    FasanGlassShader.tier.removeListener(_tierChanged);
+    _shader?.dispose();
     _holdTilt(false);
     _in.dispose();
     super.dispose();
@@ -96,14 +128,22 @@ class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateM
             borderRadius: r,
             child: BackdropFilter(
               filter: ui.ImageFilter.blur(sigmaX: l.glassBlur * k, sigmaY: l.glassBlur * k),
-              child: CustomPaint(
-                foregroundPainter: FasanLightEdgePainter(r, tilt, (dark ? 0.32 : 0.55) * k + 0.3 * widget.highlight, dark),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: tint != null ? tint.withValues(alpha: 0.88) : l.glassTint.withValues(alpha: l.glassTint.a * (0.6 + 0.4 * k)),
-                    borderRadius: r,
+              child: _refraction(
+                r,
+                tilt,
+                k,
+                CustomPaint(
+                  foregroundPainter: FasanLightEdgePainter(r, tilt, (dark ? 0.32 : 0.55) * k + 0.3 * widget.highlight, dark),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      // thinner tint over refracting glass, so the bent background shows through
+                      color: tint != null
+                          ? tint.withValues(alpha: 0.88)
+                          : l.glassTint.withValues(alpha: l.glassTint.a * (0.6 + 0.4 * k) * (_shader != null ? 0.7 : 1)),
+                      borderRadius: r,
+                    ),
+                    child: child,
                   ),
-                  child: child,
                 ),
               ),
             ),
