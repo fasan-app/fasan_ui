@@ -56,8 +56,8 @@ enum FasanFilmLayer { ground, whole }
 class FilmEffectSettings {
   const FilmEffectSettings({
     this.enabled = true,
-    this.grain = 0.35,
-    this.grainSize = 0.33,
+    this.grain = 0.22,
+    this.grainSize = 0,
     this.grainSpeed = 1.0,
     this.glow = 0.5,
     this.halation = 0.35,
@@ -113,7 +113,7 @@ class FilmEffectSettings {
       );
 
   Map<String, Object> toJson() => {
-        'v': 2,
+        'v': 3,
         'enabled': enabled,
         'grain': grain,
         'grainSize': grainSize,
@@ -130,9 +130,9 @@ class FilmEffectSettings {
 
   static FilmEffectSettings fromJson(Map<String, Object?> j) {
     const z = FilmEffectSettings();
-    // Version 1 (0.1.x) stored the old, barely visible defaults; those users never chose them, so start from the new
-    // defaults and keep only an explicit „aus“.
-    if (j['v'] != 2) return FilmEffectSettings(enabled: j['enabled'] as bool? ?? true);
+    // Older versions stored defaults the user never chose (v1: invisible grain; v2 in 0.1.13: grain far too coarse and
+    // strong, emulator pictures 02.11.). Start from the current defaults and keep only an explicit „aus“.
+    if (j['v'] != 3) return FilmEffectSettings(enabled: j['enabled'] as bool? ?? true);
     double d(String k, double v) => (j[k] as num?)?.toDouble().clamp(0.0, 1.0) ?? v;
     bool b(String k, bool v) => j[k] as bool? ?? v;
     return FilmEffectSettings(

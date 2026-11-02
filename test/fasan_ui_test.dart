@@ -149,6 +149,7 @@ void main() {
     expect(round.layer, FasanFilmLayer.whole);
     expect(round.tilt, isFalse);
     expect(const FilmEffectSettings(grainSize: 1).grainPx, 4);
+    expect(const FilmEffectSettings().grainPx, 1);
   });
 
   test('Wackeln bleibt unter 3 px', () {

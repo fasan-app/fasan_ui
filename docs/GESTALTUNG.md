@@ -59,7 +59,7 @@ Aus: „Bewegung reduzieren“, Sparen, App im Hintergrund, kein Glas sichtbar.
 
 | Effekt | Standard | Regler | Umsetzung |
 |---|---|---|---|
-| Korn | an, animiert, Stärke 0,35 | Stärke, Größe 1–4 px, Tempo 0–24 Bilder/s, Ebene | Shader ohne Bildlesen |
+| Korn | an, animiert, Stärke 0,22, 1 px (hell halb so stark) | Stärke, Größe 1–4 px, Tempo 0–24 Bilder/s, Ebene | Shader ohne Bildlesen |
 | Wackeln | an, 0,4 | Stärke (bis 3 px), Ebene | Verschiebung, zwei Sinus |
 | Glow | an, 0,5 | Stärke | weicher Schein um Hauptknopf und Summe (Blur-Schatten, kein Bildlesen) |
 | Halation | an, 0,35 | Stärke | warmer roter Saum um helle Elemente |
@@ -85,6 +85,9 @@ Glow, Halation und Überstrahlen nutzen nur `MaskFilter.blur`/Schatten. Das bish
 Reduzierte Bewegung: Überblenden ≤ 150 ms, keine Wege, keine Federn.
 
 ## 8. Prüfen
+
+Emulator 02.11. (0.1.13): Korn 0,35 bei 2 px wirkte wie Schleifpapier und verdeckte den Verlauf → 0,22 bei 1 px.
+
 
 Effekt-Testseite (Einstellungen → Aussehen → Effekte prüfen): jeder Effekt einzeln, Neigungswerte, Ereignisrate,
 Bildrate. Abnahme: Emulator-Bildschirmfotos A/B/C hell und dunkel mit echtem Bon, dann S23.

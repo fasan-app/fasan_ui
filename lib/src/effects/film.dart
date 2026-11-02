@@ -144,8 +144,8 @@ class FasanGrainPainter extends CustomPainter {
       ..setFloat(1, size.height)
       // grainSpeed scales the frame clock: 1 → 24 grain frames per second, 0 → still.
       ..setFloat(2, t * fx.grainSpeed)
-      // Grain reads stronger on light backgrounds.
-      ..setFloat(3, fx.grain * (brightness == Brightness.dark ? 1.0 : 0.7))
+      // Grain reads much stronger on light backgrounds (dark specks on paper); half there.
+      ..setFloat(3, fx.grain * (brightness == Brightness.dark ? 1.0 : 0.5))
       // Cell size. FlutterFragCoord is in local canvas units; logical vs physical pixels on the device: nicht geprüft
       // (Effekt-Testseite zeigt die Größe zum Vergleich).
       ..setFloat(4, fx.grainPx);
