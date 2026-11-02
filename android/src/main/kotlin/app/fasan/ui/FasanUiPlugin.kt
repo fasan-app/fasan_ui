@@ -26,6 +26,8 @@ class FasanUiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChann
     private var sink: EventChannel.EventSink? = null
     private var receiver: BroadcastReceiver? = null
     private var thermalListener: Any? = null
+    private var tiltEvents: EventChannel? = null
+    private var tilt: FasanTilt? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -33,11 +35,15 @@ class FasanUiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChann
         methods.setMethodCallHandler(this)
         events = EventChannel(binding.binaryMessenger, "app.fasan.ui/power/events")
         events.setStreamHandler(this)
+        tilt = FasanTilt(context)
+        tiltEvents = EventChannel(binding.binaryMessenger, "app.fasan.ui/tilt").also { it.setStreamHandler(tilt) }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         methods.setMethodCallHandler(null)
         events.setStreamHandler(null)
+        tiltEvents?.setStreamHandler(null)
+        tilt?.onCancel(null)
         stopListening()
     }
 

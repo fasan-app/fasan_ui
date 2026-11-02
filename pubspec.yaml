@@ -11,6 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Flutter team, BSD-3-Clause: shared axis, fade through, container transform
+  animations: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -25,7 +27,6 @@ flutter:
         pluginClass: FasanUiPlugin
   shaders:
     - shaders/grain.frag
-    - shaders/bloom.frag
   fonts:
     # SIL Open Font License 1.1 (fonts/OFL-*.txt)
     - family: FasanInter

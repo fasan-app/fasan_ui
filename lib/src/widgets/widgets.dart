@@ -9,66 +9,188 @@ import '../scope.dart';
 import '../settings.dart';
 import '../theme.dart';
 import '../tokens.dart';
+import '../tilt.dart';
+import '../effects/backdrop.dart';
 
 /// Glass panel for the control layer (bars, sheets). Never for content (Apple HIG Liquid Glass: separate layer).
-/// Without blur (Braun, saving power) it becomes an opaque surface with a hairline.
-class FasanGlass extends StatelessWidget {
-  const FasanGlass({super.key, required this.child, this.padding, this.radius, this.highlight = 0});
+///
+/// Made visible by light, not by lines (WWDC25 Session 219, docs/recherche/2026-11-02-glas-neigung-bewegung.md):
+/// a light edge with two opposite highlights whose angle follows the device tilt, a tight and a wide shadow, a tint,
+/// and it materializes (light and blur rise) instead of fading in. Opaque with a hairline for Braun, while saving power,
+/// with „Transparenz reduzieren“ and with high contrast (MediaQuery.highContrast).
+class FasanGlass extends StatefulWidget {
+  const FasanGlass({super.key, required this.child, this.padding, this.radius, this.highlight = 0, this.tint});
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final double? radius;
 
-  /// 0–1: short light response on touch ("Glas leuchtet beim Tippen").
+  /// 0–1: extra light (e.g. while pressed).
   final double highlight;
+
+  /// Tinted glass for the main element only (Session 219: tint for primary elements, not for everything).
+  final Color? tint;
+
+  @override
+  State<FasanGlass> createState() => _FasanGlassState();
+}
+
+class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateMixin {
+  late final AnimationController _in = AnimationController(vsync: this, duration: FasanDurations.long);
+  bool _tiltHeld = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_in.value == 0 && !_in.isAnimating) {
+      FasanMotion.of(context).enabled ? _in.forward() : _in.value = 1;
+    }
+  }
+
+  void _holdTilt(bool want) {
+    if (want == _tiltHeld) return;
+    _tiltHeld = want;
+    want ? FasanTilt.instance.acquire() : FasanTilt.instance.release();
+  }
+
+  @override
+  void dispose() {
+    _holdTilt(false);
+    _in.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final l = FasanLook.of(context);
-    final r = BorderRadius.circular(radius ?? l.radius);
+    final st = FasanEffectState.of(context);
+    final l = st.look;
+    final r = BorderRadius.circular(widget.radius ?? l.radius);
     final dark = l.brightness == Brightness.dark;
-    final panel = DecoratedBox(
-      decoration: BoxDecoration(
-        color: l.glassTint,
-        borderRadius: r,
-        border: Border.all(color: l.hairline, width: 0.8),
-        gradient: l.glassBlur > 0
-            ? LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: (dark ? 0.07 : 0.35) + 0.25 * highlight),
-                  Colors.white.withValues(alpha: dark ? 0.0 : 0.05),
-                ],
-              )
-            : null,
-      ),
-      child: Padding(padding: padding ?? const EdgeInsets.all(FasanSpace.m), child: child),
-    );
-    if (l.glassBlur <= 0) return panel;
-    return ClipRRect(
-      borderRadius: r,
-      child: BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: l.glassBlur, sigmaY: l.glassBlur), child: panel),
+    final contrast = MediaQuery.maybeHighContrastOf(context) ?? false;
+    final opaque = l.glassBlur <= 0 || contrast;
+    _holdTilt(!opaque && st.tilt);
+    final padded = Padding(padding: widget.padding ?? const EdgeInsets.all(FasanSpace.m), child: widget.child);
+    if (opaque) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: widget.tint ?? (contrast ? l.surface : l.glassTint),
+          borderRadius: r,
+          border: Border.all(color: contrast ? l.text : l.hairline, width: contrast ? 1.5 : 0.8),
+        ),
+        child: padded,
+      );
+    }
+    final tint = widget.tint;
+    return AnimatedBuilder(
+      animation: Listenable.merge([_in, if (st.tilt) FasanTilt.instance]),
+      builder: (context, child) {
+        final k = Curves.easeOutCubic.transform(_in.value);
+        final tilt = st.tilt ? FasanTilt.instance.value : Offset.zero;
+        return DecoratedBox(
+          // Two shadows: tight contact and wide lift; deeper in the dark (Session 219: shadow adapts to the ground).
+          decoration: BoxDecoration(borderRadius: r, boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.08 * k), blurRadius: 2, offset: const Offset(0, 1)),
+            BoxShadow(color: Colors.black.withValues(alpha: (dark ? 0.35 : 0.10) * k), blurRadius: 30, offset: const Offset(0, 10)),
+          ]),
+          child: ClipRRect(
+            borderRadius: r,
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: l.glassBlur * k, sigmaY: l.glassBlur * k),
+              child: CustomPaint(
+                foregroundPainter: FasanLightEdgePainter(r, tilt, (dark ? 0.32 : 0.55) * k + 0.3 * widget.highlight, dark),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: tint != null ? tint.withValues(alpha: 0.88) : l.glassTint.withValues(alpha: l.glassTint.a * (0.6 + 0.4 * k)),
+                    borderRadius: r,
+                  ),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      child: padded,
     );
   }
+}
+
+/// Light edge of glass: a 1.2 dp rim, bright at the light side and faintly at the opposite side (light passing through).
+/// Resting light comes from the top left; tilt turns it by up to ±35°.
+class FasanLightEdgePainter extends CustomPainter {
+  FasanLightEdgePainter(this.radius, this.tilt, this.strength, this.dark);
+
+  final BorderRadius radius;
+  final Offset tilt;
+  final double strength;
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (strength <= 0) return;
+    final rect = Offset.zero & size;
+    final rr = radius.toRRect(rect).deflate(0.6);
+    final angle = -3 * math.pi / 4 + (tilt.dx - tilt.dy) * 35 * math.pi / 180;
+    Color w(double a) => Colors.white.withValues(alpha: (a * strength).clamp(0.0, 1.0));
+    final sweep = SweepGradient(
+      center: Alignment.center,
+      transform: GradientRotation(angle),
+      colors: [w(1), w(0.08), w(0.22), w(0.08), w(1)],
+      stops: const [0, 0.22, 0.5, 0.78, 1],
+    );
+    canvas.drawRRect(rr, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..shader = sweep.createShader(rect));
+    // Inner sheen: the top part of the glass catches a little more light.
+    final sheen = LinearGradient(
+      begin: Alignment(math.cos(angle), math.sin(angle)),
+      end: Alignment(-math.cos(angle), -math.sin(angle)),
+      colors: [w(dark ? 0.16 : 0.28), w(0)],
+      stops: const [0, 0.6],
+    );
+    canvas.drawRRect(rr, Paint()..shader = sheen.createShader(rect));
+  }
+
+  @override
+  bool shouldRepaint(FasanLightEdgePainter old) => old.tilt != tilt || old.strength != strength || old.radius != radius || old.dark != dark;
 }
 
 /// Scales down slightly while pressed and springs back (velocity-free spring, FasanMotion.spring).
 /// Gives haptic feedback on tap. The hit area is at least FasanLook.minTap.
 class FasanPressable extends StatefulWidget {
-  const FasanPressable({super.key, required this.child, this.onTap, this.onLongPress, this.semanticLabel, this.scale = 0.96});
+  const FasanPressable({super.key, required this.child, this.onTap, this.onLongPress, this.semanticLabel, this.scale = 0.96, this.lightRadius});
 
   final Widget child;
   final VoidCallback? onTap, onLongPress;
   final String? semanticLabel;
   final double scale;
 
+  /// When set, the surface lights up under the finger (Session 219: light spreads from the fingertip), clipped to this
+  /// corner radius.
+  final double? lightRadius;
+
   @override
   State<FasanPressable> createState() => _FasanPressableState();
 }
 
-class _FasanPressableState extends State<FasanPressable> with SingleTickerProviderStateMixin {
+class _FasanPressableState extends State<FasanPressable> with TickerProviderStateMixin {
   late final AnimationController _c = AnimationController.unbounded(vsync: this, value: 1);
+  late final AnimationController _light = AnimationController(vsync: this, duration: const Duration(milliseconds: 120), reverseDuration: const Duration(milliseconds: 420));
+  Offset _at = Offset.zero;
+
+  void _down(TapDownDetails d) {
+    _to(widget.scale);
+    if (widget.lightRadius != null && FasanMotion.of(context).enabled) {
+      _at = d.localPosition;
+      _light.forward();
+    }
+  }
+
+  void _up() {
+    _to(1);
+    _light.reverse();
+  }
 
   void _to(double target) {
     final m = FasanMotion.of(context);
@@ -82,6 +204,7 @@ class _FasanPressableState extends State<FasanPressable> with SingleTickerProvid
   @override
   void dispose() {
     _c.dispose();
+    _light.dispose();
     super.dispose();
   }
 
@@ -89,15 +212,23 @@ class _FasanPressableState extends State<FasanPressable> with SingleTickerProvid
   Widget build(BuildContext context) {
     final l = FasanLook.of(context);
     final enabled = widget.onTap != null || widget.onLongPress != null;
+    Widget inner = Center(widthFactor: 1, heightFactor: 1, child: widget.child);
+    final lr = widget.lightRadius;
+    if (lr != null) {
+      inner = CustomPaint(
+        foregroundPainter: _TouchLightPainter(_light, () => _at, lr, l.brightness == Brightness.dark),
+        child: inner,
+      );
+    }
     return Semantics(
       button: true,
       enabled: enabled,
       label: widget.semanticLabel,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: enabled ? (_) => _to(widget.scale) : null,
-        onTapCancel: enabled ? () => _to(1) : null,
-        onTapUp: enabled ? (_) => _to(1) : null,
+        onTapDown: enabled ? _down : null,
+        onTapCancel: enabled ? _up : null,
+        onTapUp: enabled ? (_) => _up() : null,
         onTap: widget.onTap == null
             ? null
             : () {
@@ -110,7 +241,7 @@ class _FasanPressableState extends State<FasanPressable> with SingleTickerProvid
           child: AnimatedBuilder(
             animation: _c,
             builder: (context, child) => Transform.scale(scale: _c.value, child: child),
-            child: Center(widthFactor: 1, heightFactor: 1, child: widget.child),
+            child: inner,
           ),
         ),
       ),
@@ -118,10 +249,39 @@ class _FasanPressableState extends State<FasanPressable> with SingleTickerProvid
   }
 }
 
+class _TouchLightPainter extends CustomPainter {
+  _TouchLightPainter(this.t, this.at, this.radius, this.dark) : super(repaint: t);
+
+  final Animation<double> t;
+  final Offset Function() at;
+  final double radius;
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final v = t.value;
+    if (v <= 0) return;
+    final rect = Offset.zero & size;
+    canvas.save();
+    canvas.clipRRect(RRect.fromRectAndRadius(rect, Radius.circular(math.min(radius, size.shortestSide / 2))));
+    final c = at();
+    const r = 90.0;
+    canvas.drawCircle(c, r, Paint()
+      ..shader = ui.Gradient.radial(c, r, [Colors.white.withValues(alpha: (dark ? 0.14 : 0.22) * v), Colors.white.withValues(alpha: 0)]));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_TouchLightPainter old) => old.radius != radius || old.dark != dark;
+}
+
 enum FasanButtonKind { primary, secondary, quiet }
 
 class FasanButton extends StatelessWidget {
-  const FasanButton({super.key, required this.label, this.onPressed, this.icon, this.kind = FasanButtonKind.primary, this.expand = false});
+  const FasanButton({super.key, required this.label, this.onPressed, this.icon, this.kind = FasanButtonKind.primary, this.expand = false, this.glow});
+
+  /// Glow around the button; default on for primary. At most one per screen (attention rules).
+  final bool? glow;
 
   final String label;
   final VoidCallback? onPressed;
@@ -148,22 +308,30 @@ class FasanButton extends StatelessWidget {
         Flexible(child: Text(cine ? label.toUpperCase() : label, style: t.copyWith(color: fg), overflow: TextOverflow.ellipsis)),
       ],
     );
+    final radius = l.style == FasanStyle.braun || cine ? l.radius : 999.0;
+    final lit = l.style.glass && kind != FasanButtonKind.quiet && !disabled;
+    Widget body = Container(
+      constraints: BoxConstraints(minHeight: l.minTap, minWidth: expand ? double.infinity : 0),
+      padding: const EdgeInsets.symmetric(horizontal: FasanSpace.xl, vertical: FasanSpace.m),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(radius),
+        border: border == null ? null : Border.all(color: border),
+      ),
+      child: content,
+    );
+    if (lit) {
+      body = CustomPaint(
+        foregroundPainter: FasanLightEdgePainter(BorderRadius.circular(radius), Offset.zero, kind == FasanButtonKind.primary ? 0.45 : 0.3, l.brightness == Brightness.dark),
+        child: body,
+      );
+    }
+    if ((glow ?? kind == FasanButtonKind.primary) && !disabled && l.style != FasanStyle.braun) {
+      body = FasanGlow(radius: radius, strength: 0.8, child: body);
+    }
     return Opacity(
       opacity: disabled ? 0.45 : 1,
-      child: FasanPressable(
-        onTap: onPressed,
-        semanticLabel: label,
-        child: Container(
-          constraints: BoxConstraints(minHeight: l.minTap, minWidth: expand ? double.infinity : 0),
-          padding: const EdgeInsets.symmetric(horizontal: FasanSpace.xl, vertical: FasanSpace.m),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(l.style == FasanStyle.braun || cine ? l.radius : 999),
-            border: border == null ? null : Border.all(color: border),
-          ),
-          child: content,
-        ),
-      ),
+      child: FasanPressable(onTap: onPressed, semanticLabel: label, lightRadius: lit ? radius : null, child: body),
     );
   }
 }

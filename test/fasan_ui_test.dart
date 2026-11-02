@@ -139,4 +139,62 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(simple ? 60 : 48));
     }
   });
+
+  test('Alte Effekt-Einstellungen (0.1) starten mit den neuen, merkbaren Standards; „aus“ bleibt aus', () {
+    final old = FilmEffectSettings.fromJson({'enabled': false, 'grain': 0.1, 'weave': 0.15});
+    expect(old.enabled, isFalse);
+    expect(old.grain, const FilmEffectSettings().grain);
+    final round = FilmEffectSettings.fromJson(const FilmEffectSettings(grain: 0.8, layer: FasanFilmLayer.whole, tilt: false).toJson());
+    expect(round.grain, closeTo(0.8, 1e-9));
+    expect(round.layer, FasanFilmLayer.whole);
+    expect(round.tilt, isFalse);
+    expect(const FilmEffectSettings(grainSize: 1).grainPx, 4);
+  });
+
+  test('Wackeln bleibt unter 3 px', () {
+    for (var t = 0.0; t < 60; t += 0.07) {
+      final o = FasanFilm.weaveOffset(t, 1);
+      expect(o.dx.abs(), lessThanOrEqualTo(3.0001));
+      expect(o.dy.abs(), lessThanOrEqualTo(3.0001));
+    }
+  });
+
+  testWidgets('Hintergrund, Glas, Glow und Effekt-Testseite rendern; Neigung ohne Sensor bleibt ruhig', (tester) async {
+    final c = FasanController();
+    await tester.pumpWidget(FasanScope(
+      controller: c,
+      child: MaterialApp(
+        theme: c.theme(Brightness.dark),
+        builder: (context, child) => FasanBackdrop(child: FasanFilm(child: child!)),
+        home: const FasanEffectLab(),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 500));
+    FasanTilt.instance.simulate(const Offset(0.5, -0.3));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byType(ChoiceChip).at(2));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(FasanGlass), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Ganzes Bild: Vorschau unter dem App-Korn legt kein zweites darüber', (tester) async {
+    final c = FasanController(settings: const FasanSettings(effects: FilmEffectSettings(layer: FasanFilmLayer.whole)));
+    late BuildContext inner;
+    await tester.pumpWidget(FasanScope(
+      controller: c,
+      child: MaterialApp(
+        theme: c.theme(Brightness.light),
+        builder: (context, child) => FasanFilm(child: child!),
+        home: Builder(builder: (context) {
+          inner = context;
+          return const SizedBox();
+        }),
+      ),
+    ));
+    await tester.pump();
+    expect(FasanFilm.coversWhole(inner), isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
 }

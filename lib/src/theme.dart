@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'settings.dart';
 import 'tokens.dart';
+import 'transitions.dart';
 
 /// Style-specific values that Material's ColorScheme has no slot for. Read with `FasanLook.of(context)`.
 @immutable
@@ -31,6 +32,8 @@ class FasanLook extends ThemeExtension<FasanLook> {
     required this.fontFamily,
     required this.monoFamily,
     required this.fontPackage,
+    this.blobs = const [],
+    this.reduceTransparency = false,
   });
 
   final FasanStyle style;
@@ -48,6 +51,12 @@ class FasanLook extends ThemeExtension<FasanLook> {
   final double radius;
   final double minTap;
   final String? fontFamily, monoFamily, fontPackage;
+
+  /// Three colour spots of the animated ground (GESTALTUNG.md §3), already with their opacity. Empty = plain ground.
+  final List<Color> blobs;
+
+  /// Glass drawn opaque (app setting „Transparenz reduzieren“, saving power, or high contrast).
+  final bool reduceTransparency;
 
   bool get saving => level != FasanPowerLevel.full;
 
@@ -89,6 +98,8 @@ class FasanLook extends ThemeExtension<FasanLook> {
         fontFamily: fontFamily,
         monoFamily: monoFamily,
         fontPackage: fontPackage,
+        blobs: blobs,
+        reduceTransparency: reduceTransparency,
       );
 
   @override
@@ -116,6 +127,8 @@ class FasanLook extends ThemeExtension<FasanLook> {
       fontFamily: t < 0.5 ? fontFamily : other.fontFamily,
       monoFamily: t < 0.5 ? monoFamily : other.monoFamily,
       fontPackage: t < 0.5 ? fontPackage : other.fontPackage,
+      blobs: blobs.length == other.blobs.length ? [for (var i = 0; i < blobs.length; i++) c(blobs[i], other.blobs[i])] : (t < 0.5 ? blobs : other.blobs),
+      reduceTransparency: t < 0.5 ? reduceTransparency : other.reduceTransparency,
     );
   }
 }
@@ -128,12 +141,13 @@ abstract final class FasanThemes {
   static Color accent(FasanAccent a, Brightness b) {
     final dark = b == Brightness.dark;
     switch (a) {
+      // Palettes A/B/C, docs/recherche/2026-11-02-farbe-verlauf-aufmerksamkeit.md §5 (contrast values there).
       case FasanAccent.signal:
         return dark ? const Color(0xFFFF8A4C) : const Color(0xFFC2410C);
       case FasanAccent.cobalt:
-        return dark ? const Color(0xFF8AA4FF) : const Color(0xFF2B54D6);
+        return dark ? const Color(0xFF7C9BFF) : const Color(0xFF2F55D4);
       case FasanAccent.sage:
-        return dark ? const Color(0xFF5CCFA5) : const Color(0xFF26745C);
+        return dark ? const Color(0xFF7CC4A4) : const Color(0xFF2F6B55);
     }
   }
 
@@ -155,21 +169,36 @@ abstract final class FasanThemes {
       case FasanStyle.calmGlass:
       case FasanStyle.fullGlass:
         final full = s.style == FasanStyle.fullGlass;
-        final bg = dark ? const Color(0xFF0B0B0C) : const Color(0xFFF4F4F1);
-        final surf = dark ? const Color(0xFF17171A) : Colors.white;
+        // Ground, surface and text per palette (A Papier/Orange, B Nebel/Tiefblau, C Salbei/Ton; GESTALTUNG.md §3).
+        final (Color bg, Color surf, Color tx, Color mu, List<Color> spots) = switch ((s.accent, dark)) {
+          (FasanAccent.signal, false) => (const Color(0xFFF4F2EE), Colors.white, const Color(0xFF1B1B1A), const Color(0xFF5C5A56),
+              [a.withValues(alpha: 0.10), const Color(0x24D9B98C), const Color(0x14E08A8A)]),
+          (FasanAccent.signal, true) => (const Color(0xFF121211), const Color(0xFF1C1B1A), const Color(0xFFEDEBE7), const Color(0xFFA5A29B),
+              [a.withValues(alpha: 0.12), const Color(0x1C8C6A3C), const Color(0x147A3A3A)]),
+          (FasanAccent.cobalt, false) => (const Color(0xFFF5F6F8), Colors.white, const Color(0xFF14161A), const Color(0xFF555B66),
+              [a.withValues(alpha: 0.12), const Color(0x24A9D3EE), const Color(0x14B9A6E8)]),
+          (FasanAccent.cobalt, true) => (const Color(0xFF0E1014), const Color(0xFF171A20), const Color(0xFFE8EAEE), const Color(0xFF9AA1AD),
+              [a.withValues(alpha: 0.14), const Color(0x1C2E6E8E), const Color(0x16584A9A)]),
+          (FasanAccent.sage, false) => (const Color(0xFFF6F5F1), Colors.white, const Color(0xFF1D211E), const Color(0xFF575D58),
+              [a.withValues(alpha: 0.10), const Color(0x1FC9A27E), const Color(0x149AAE6A)]),
+          (FasanAccent.sage, true) => (const Color(0xFF101412), const Color(0xFF181D1A), const Color(0xFFE6EAE6), const Color(0xFF9AA39C),
+              [a.withValues(alpha: 0.12), const Color(0x1C7A5A3E), const Color(0x14506A34)]),
+        };
+        final opaque = s.reduceTransparency || !blurOk;
         return FasanLook(
           style: s.style, brightness: b, level: level, effects: s.effects,
           background: bg, surface: surf,
-          surfaceAlt: dark ? const Color(0xFF212125) : const Color(0xFFECECE8),
-          text: dark ? const Color(0xFFF2F2F0) : const Color(0xFF111112),
-          textMuted: dark ? const Color(0xFFA6A6A8) : const Color(0xFF5E5E62),
+          surfaceAlt: Color.lerp(surf, tx, dark ? 0.06 : 0.045)!,
+          text: tx,
+          textMuted: mu,
           hairline: dark ? const Color(0x24FFFFFF) : const Color(0x1A000000),
           accent: a, onAccent: onA,
           line: dark ? const Color(0x55FFFFFF) : const Color(0x44000000),
-          glassTint: tintFor(dark ? const Color(0xFF1C1C20) : const Color(0xFFFFFFFF), full ? 0.42 : 0.68),
-          glassBlur: blurOk ? (full ? 28 : 18) : 0,
+          glassTint: opaque ? surf : surf.withValues(alpha: full ? 0.42 : 0.62),
+          glassBlur: opaque ? 0 : (full ? 28 : 18),
           radius: full ? FasanRadius.xl : FasanRadius.l,
           minTap: s.minTap, fontFamily: family, monoFamily: mono, fontPackage: pkg,
+          blobs: spots, reduceTransparency: opaque,
         );
       case FasanStyle.braun:
         return FasanLook(
@@ -243,7 +272,15 @@ abstract final class FasanThemes {
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: l.background,
+      // Pages are transparent: the ground (FasanBackdrop, layer 0) lies behind the Navigator (GESTALTUNG.md §2).
+      // Apps put FasanBackdrop into MaterialApp.builder.
+      scaffoldBackgroundColor: Colors.transparent,
+      canvasColor: l.background,
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: FasanPageTransitionsBuilder(),
+        TargetPlatform.iOS: FasanPageTransitionsBuilder(),
+        TargetPlatform.linux: FasanPageTransitionsBuilder(),
+      }),
       fontFamily: family,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
@@ -290,7 +327,7 @@ abstract final class FasanThemes {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: l.background,
+        backgroundColor: Colors.transparent,
         foregroundColor: l.text,
         elevation: 0,
         scrolledUnderElevation: 0,

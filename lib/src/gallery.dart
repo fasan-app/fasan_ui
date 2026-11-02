@@ -1,11 +1,18 @@
 // fasan_ui – gallery for comparing styles, accents, fonts and effects; also the appearance settings page. MPL-2.0
 import 'package:flutter/material.dart';
 
+import 'dart:async';
+import 'dart:ui' as ui;
+
+import 'package:flutter/scheduler.dart';
+
+import 'effects/backdrop.dart';
 import 'effects/film.dart';
 import 'power.dart';
 import 'scope.dart';
 import 'settings.dart';
 import 'theme.dart';
+import 'tilt.dart';
 import 'tokens.dart';
 import 'widgets/widgets.dart';
 
@@ -55,8 +62,27 @@ class FasanStrings {
   String get grain => de ? 'Korn' : 'Grain';
   String get glow => 'Glow';
   String get halation => 'Halation';
-  String get bleed => de ? 'Lichtüberstrahlung' : 'Light bleeding';
+  String get bleed => de ? 'Überstrahlen' : 'Light bleeding';
   String get weave => de ? 'Bildstandwackeln' : 'Gate weave';
+  String get grainSize => de ? 'Korngröße' : 'Grain size';
+  String get grainSpeed => de ? 'Korn-Tempo' : 'Grain speed';
+  String get layer => de ? 'Korn und Wackeln' : 'Grain and weave';
+  String layerName(FasanFilmLayer v) => switch (v) {
+        FasanFilmLayer.ground => de ? 'Nur Hintergrund' : 'Background only',
+        FasanFilmLayer.whole => de ? 'Ganzes Bild' : 'Whole picture',
+      };
+  String get gradient => de ? 'Farbverlauf im Hintergrund' : 'Background gradient';
+  String get lightSweep => de ? 'Lichteinfall' : 'Light sweep';
+  String get tilt => de ? 'Glas folgt der Neigung' : 'Glass follows tilt';
+  String get transparency => de ? 'Transparenz reduzieren' : 'Reduce transparency';
+  String get transparencyHint => de ? 'Glas wird zur festen Fläche.' : 'Glass becomes a solid surface.';
+  String get lab => de ? 'Effekte prüfen' : 'Test effects';
+  String get labSolo => de ? 'Nur einen Effekt zeigen' : 'Show one effect';
+  String get labAll => de ? 'Alle' : 'All';
+  String get labTilt => de ? 'Neigung' : 'Tilt';
+  String get labNoSensor => de ? 'Kein Lagesensor – Regler simuliert die Neigung.' : 'No motion sensor – the slider simulates tilt.';
+  String get labFps => de ? 'Bilder pro Sekunde' : 'Frames per second';
+  String get labPulse => de ? 'Ring-Impuls zeigen' : 'Play ring pulse';
   String get batteryLabel => de ? 'Akku' : 'Battery';
   String get batteryHint => de
       ? 'Bei wenig Akku, im Energiesparmodus oder wenn das Handy warm ist, laufen keine Effekte.'
@@ -113,7 +139,7 @@ class FasanAppearancePage extends StatelessWidget {
         children: [
           FasanLabel(t.preview),
           const SizedBox(height: FasanSpace.s),
-          ClipRRect(borderRadius: BorderRadius.circular(l.radius), child: const SizedBox(height: 260, child: FasanFilm(child: FasanSample()))),
+          ClipRRect(borderRadius: BorderRadius.circular(l.radius), child: const SizedBox(height: 260, child: FasanBackdrop(child: FasanFilm(child: FasanSample())))),
           const SizedBox(height: FasanSpace.s),
           Text(t.state(c.level), style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: FasanSpace.xl),
@@ -144,13 +170,47 @@ class FasanAppearancePage extends StatelessWidget {
             onChanged: (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(enabled: v))),
           ),
           slider(t.grain, s.effects.grain, (x) => s.effects.copyWith(grain: x)),
-          // only effects that work (Regel: nur zeigen, was wirklich funktioniert); see FasanFilm.bloomVerified
-          if (FasanFilm.bloomVerified) ...[
-            slider(t.glow, s.effects.glow, (x) => s.effects.copyWith(glow: x)),
-            slider(t.halation, s.effects.halation, (x) => s.effects.copyWith(halation: x)),
-            slider(t.bleed, s.effects.bleed, (x) => s.effects.copyWith(bleed: x)),
-          ],
+          slider(t.grainSize, s.effects.grainSize, (x) => s.effects.copyWith(grainSize: x)),
+          slider(t.grainSpeed, s.effects.grainSpeed, (x) => s.effects.copyWith(grainSpeed: x)),
           slider(t.weave, s.effects.weave, (x) => s.effects.copyWith(weave: x)),
+          slider(t.glow, s.effects.glow, (x) => s.effects.copyWith(glow: x)),
+          slider(t.halation, s.effects.halation, (x) => s.effects.copyWith(halation: x)),
+          slider(t.bleed, s.effects.bleed, (x) => s.effects.copyWith(bleed: x)),
+          const SizedBox(height: FasanSpace.s),
+          Text(t.layer, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: FasanSpace.s),
+          FasanSegmented<FasanFilmLayer>(
+            values: FasanFilmLayer.values,
+            selected: s.effects.layer,
+            label: t.layerName,
+            onChanged: (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(layer: v))),
+          ),
+          for (final (name, value, set) in [
+            (t.gradient, s.effects.gradient, (bool v) => s.effects.copyWith(gradient: v)),
+            (t.lightSweep, s.effects.lightSweep, (bool v) => s.effects.copyWith(lightSweep: v)),
+            (t.tilt, s.effects.tilt, (bool v) => s.effects.copyWith(tilt: v)),
+          ])
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(name),
+              value: value,
+              onChanged: s.effects.enabled ? (v) => c.update((o) => o.copyWith(effects: set(v))) : null,
+            ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t.transparency),
+            subtitle: Text(t.transparencyHint),
+            value: s.reduceTransparency,
+            onChanged: (v) => c.update((o) => o.copyWith(reduceTransparency: v)),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.science_outlined),
+              label: Text(t.lab),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FasanEffectLab())),
+            ),
+          ),
           const SizedBox(height: FasanSpace.l),
           FasanLabel(t.batteryLabel),
           const SizedBox(height: FasanSpace.s),
@@ -231,7 +291,7 @@ class _Tile extends StatelessWidget {
             return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Text(title, style: Theme.of(context).textTheme.labelMedium!.copyWith(color: FasanLook.of(context).textMuted)),
               const SizedBox(height: 6),
-              Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(l.radius), child: const FasanFilm(child: FasanSample()))),
+              Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(l.radius), child: const FasanBackdrop(child: FasanFilm(child: FasanSample())))),
             ]);
           }),
         ),
@@ -251,8 +311,7 @@ class FasanSample extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
     final people = [('Christopher', 0), ('Anna', 1), ('Jo', 2), ('Mia', 3)];
     final rows = [('Bacalhau à Brás', '18,50', [0, 1]), ('Vinho Verde', '24,00', [0, 1, 2, 3]), ('Pastel de Nata ×4', '6,40', [2])];
-    Widget content = Container(
-      color: l.background,
+    Widget content = Padding(
       padding: const EdgeInsets.fromLTRB(FasanSpace.l, FasanSpace.l, FasanSpace.l, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         FasanLabel(l.style.cinematic ? 'REF 0427 · LIS' : 'Lissabon'),
@@ -302,5 +361,126 @@ class FasanSample extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+/// Effect test page (GESTALTUNG.md §8): every effect alone, live tilt values, sensor rate and frame rate.
+/// For checking on a real phone (S23 first) before a style is accepted.
+class FasanEffectLab extends StatefulWidget {
+  const FasanEffectLab({super.key});
+
+  @override
+  State<FasanEffectLab> createState() => _FasanEffectLabState();
+}
+
+enum _Solo { all, gradient, grain, weave, sweep, bleed, glow, glass }
+
+class _FasanEffectLabState extends State<FasanEffectLab> {
+  _Solo _solo = _Solo.all;
+  int _pulse = 0;
+  double _fps = 0;
+  Timer? _poll;
+  void _timings(List<ui.FrameTiming> list) {
+    if (list.isEmpty) return;
+    // totalSpan = build + raster time per frame; the inverse is the frame rate the device could sustain.
+    final total = list.map((f) => f.totalSpan.inMicroseconds).reduce((a, b) => a + b) / list.length;
+    if (mounted && total > 0) setState(() => _fps = 1e6 / total);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    FasanTilt.instance.acquire();
+    SchedulerBinding.instance.addTimingsCallback(_timings);
+    _poll = Timer.periodic(const Duration(milliseconds: 500), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    SchedulerBinding.instance.removeTimingsCallback(_timings);
+    FasanTilt.instance.release();
+    super.dispose();
+  }
+
+  FilmEffectSettings _effects(FilmEffectSettings base) {
+    if (_solo == _Solo.all) return base;
+    const none = FilmEffectSettings(grain: 0, glow: 0, halation: 0, bleed: 0, weave: 0, gradient: false, lightSweep: false, tilt: false);
+    return switch (_solo) {
+      _Solo.gradient => none.copyWith(gradient: true),
+      _Solo.grain => none.copyWith(grain: base.grain > 0 ? base.grain : 0.35, grainSize: base.grainSize, grainSpeed: base.grainSpeed),
+      _Solo.weave => none.copyWith(weave: base.weave > 0 ? base.weave : 0.4, gradient: true),
+      _Solo.sweep => none.copyWith(lightSweep: true),
+      _Solo.bleed => none.copyWith(bleed: base.bleed > 0 ? base.bleed : 0.25, tilt: true),
+      _Solo.glow => none.copyWith(glow: base.glow > 0 ? base.glow : 0.5, halation: base.halation > 0 ? base.halation : 0.35),
+      _Solo.glass => none.copyWith(tilt: true, gradient: true),
+      _Solo.all => base,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FasanStrings.of(context);
+    final l = FasanLook.of(context);
+    final tt = Theme.of(context).textTheme;
+    final tilt = FasanTilt.instance;
+    final fx = _effects(l.effects);
+    final names = {
+      _Solo.all: t.labAll, _Solo.gradient: t.gradient, _Solo.grain: t.grain, _Solo.weave: t.weave,
+      _Solo.sweep: t.lightSweep, _Solo.bleed: t.bleed, _Solo.glow: '${t.glow} + ${t.halation}', _Solo.glass: t.tilt,
+    };
+    final noSensor = tilt.source == 'none' || tilt.source == '';
+    return Scaffold(
+      appBar: AppBar(title: Text(t.lab)),
+      body: ListView(padding: const EdgeInsets.fromLTRB(FasanSpace.l, 0, FasanSpace.l, FasanSpace.xxxl), children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(l.radius),
+          child: SizedBox(
+            height: 340,
+            child: Theme(
+              data: Theme.of(context).copyWith(extensions: [l.copyWith(effects: fx)]),
+              child: FasanBackdrop(
+                effects: fx,
+                child: Padding(
+                  padding: const EdgeInsets.all(FasanSpace.l),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Text('86,40 €', style: tt.displaySmall),
+                    Text(t.sampleSub, style: tt.bodySmall),
+                    const Spacer(),
+                    FasanGlass(child: Row(children: [
+                      const Icon(Icons.receipt_long_outlined),
+                      const SizedBox(width: FasanSpace.m),
+                      Expanded(child: Text(t.sample, style: tt.titleMedium)),
+                    ])),
+                    const SizedBox(height: FasanSpace.l),
+                    FasanGlow(pulse: _pulse, radius: 999, child: FasanButton(label: t.action, onPressed: () {}, expand: true, glow: false)),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: FasanSpace.l),
+        FasanLabel(t.labSolo),
+        const SizedBox(height: FasanSpace.s),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final v in _Solo.values) ChoiceChip(label: Text(names[v]!), selected: _solo == v, onSelected: (_) => setState(() => _solo = v)),
+        ]),
+        const SizedBox(height: FasanSpace.l),
+        Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: () => setState(() => _pulse++), child: Text(t.labPulse))),
+        const SizedBox(height: FasanSpace.l),
+        FasanLabel(t.labTilt),
+        Text(
+          'x ${tilt.value.dx.toStringAsFixed(2)} · y ${tilt.value.dy.toStringAsFixed(2)} · ${tilt.source.isEmpty ? '–' : tilt.source} · ${tilt.rate.toStringAsFixed(0)} Hz',
+          style: l.mono(13, color: l.text),
+        ),
+        if (noSensor) ...[
+          Text(t.labNoSensor, style: tt.bodySmall),
+          Slider(value: tilt.value.dx, min: -1, max: 1, onChanged: (v) => setState(() => tilt.simulate(Offset(v, tilt.value.dy)))),
+        ],
+        const SizedBox(height: FasanSpace.s),
+        Text('${t.labFps}: ${_fps.toStringAsFixed(0)} · ${t.grainSize}: ${fx.grainPx.toStringAsFixed(1)} px', style: l.mono(13, color: l.text)),
+      ]),
+    );
   }
 }

@@ -49,45 +49,105 @@ enum FasanBatteryMode {
 /// Effective power level after combining the user's mode with the device state.
 enum FasanPowerLevel { full, save, maximum }
 
-/// Intensities 0–1 per film effect. Defaults are subtle (Beschluss 01.11.).
+/// Where grain and weave apply (GESTALTUNG.md §2): only the ground behind content (default) or the whole picture.
+enum FasanFilmLayer { ground, whole }
+
+/// Film effects. Intensities 0–1. Defaults are noticeable but calm (Nutzer 02.11.: „subtil ist … überhaupt nicht merkbar“).
 class FilmEffectSettings {
   const FilmEffectSettings({
     this.enabled = true,
-    this.grain = 0.25,
-    this.glow = 0.2,
-    this.halation = 0.15,
-    this.bleed = 0.1,
-    this.weave = 0.15,
+    this.grain = 0.35,
+    this.grainSize = 0.33,
+    this.grainSpeed = 1.0,
+    this.glow = 0.5,
+    this.halation = 0.35,
+    this.bleed = 0.25,
+    this.weave = 0.4,
+    this.layer = FasanFilmLayer.ground,
+    this.gradient = true,
+    this.lightSweep = true,
+    this.tilt = true,
   });
 
   final bool enabled;
-  final double grain, glow, halation, bleed, weave;
 
-  bool get any => enabled && (grain > 0 || glow > 0 || halation > 0 || bleed > 0 || weave > 0);
+  /// grain: strength. grainSize: 0 → 1 px … 1 → 4 px. grainSpeed: 0 = still … 1 = 24 frames per second.
+  final double grain, grainSize, grainSpeed, glow, halation, bleed, weave;
+  final FasanFilmLayer layer;
 
-  FilmEffectSettings copyWith({bool? enabled, double? grain, double? glow, double? halation, double? bleed, double? weave}) =>
+  /// Animated colour field behind content, wandering light band, light edge following the device tilt.
+  final bool gradient, lightSweep, tilt;
+
+  /// Grain cell in logical pixels.
+  double get grainPx => 1 + grainSize * 3;
+
+  bool get any => enabled && (grain > 0 || glow > 0 || halation > 0 || bleed > 0 || weave > 0 || gradient || lightSweep || tilt);
+
+  FilmEffectSettings copyWith({
+    bool? enabled,
+    double? grain,
+    double? grainSize,
+    double? grainSpeed,
+    double? glow,
+    double? halation,
+    double? bleed,
+    double? weave,
+    FasanFilmLayer? layer,
+    bool? gradient,
+    bool? lightSweep,
+    bool? tilt,
+  }) =>
       FilmEffectSettings(
         enabled: enabled ?? this.enabled,
         grain: grain ?? this.grain,
+        grainSize: grainSize ?? this.grainSize,
+        grainSpeed: grainSpeed ?? this.grainSpeed,
         glow: glow ?? this.glow,
         halation: halation ?? this.halation,
         bleed: bleed ?? this.bleed,
         weave: weave ?? this.weave,
+        layer: layer ?? this.layer,
+        gradient: gradient ?? this.gradient,
+        lightSweep: lightSweep ?? this.lightSweep,
+        tilt: tilt ?? this.tilt,
       );
 
-  Map<String, Object> toJson() =>
-      {'enabled': enabled, 'grain': grain, 'glow': glow, 'halation': halation, 'bleed': bleed, 'weave': weave};
+  Map<String, Object> toJson() => {
+        'v': 2,
+        'enabled': enabled,
+        'grain': grain,
+        'grainSize': grainSize,
+        'grainSpeed': grainSpeed,
+        'glow': glow,
+        'halation': halation,
+        'bleed': bleed,
+        'weave': weave,
+        'layer': layer.name,
+        'gradient': gradient,
+        'lightSweep': lightSweep,
+        'tilt': tilt,
+      };
 
   static FilmEffectSettings fromJson(Map<String, Object?> j) {
-    double d(String k, double v) => (j[k] as num?)?.toDouble().clamp(0.0, 1.0) ?? v;
     const z = FilmEffectSettings();
+    // Version 1 (0.1.x) stored the old, barely visible defaults; those users never chose them, so start from the new
+    // defaults and keep only an explicit „aus“.
+    if (j['v'] != 2) return FilmEffectSettings(enabled: j['enabled'] as bool? ?? true);
+    double d(String k, double v) => (j[k] as num?)?.toDouble().clamp(0.0, 1.0) ?? v;
+    bool b(String k, bool v) => j[k] as bool? ?? v;
     return FilmEffectSettings(
-      enabled: j['enabled'] as bool? ?? true,
+      enabled: b('enabled', true),
       grain: d('grain', z.grain),
+      grainSize: d('grainSize', z.grainSize),
+      grainSpeed: d('grainSpeed', z.grainSpeed),
       glow: d('glow', z.glow),
       halation: d('halation', z.halation),
       bleed: d('bleed', z.bleed),
       weave: d('weave', z.weave),
+      layer: FasanFilmLayer.values.firstWhere((v) => v.name == j['layer'], orElse: () => z.layer),
+      gradient: b('gradient', z.gradient),
+      lightSweep: b('lightSweep', z.lightSweep),
+      tilt: b('tilt', z.tilt),
     );
   }
 }
@@ -106,6 +166,7 @@ class FasanSettings {
     this.reduceMotion = false,
     this.haptics = true,
     this.simpleProfile = false,
+    this.reduceTransparency = false,
   });
 
   final FasanStyle style;
@@ -122,6 +183,9 @@ class FasanSettings {
   /// Profile "Einfach": larger tap areas (60 dp) and text.
   final bool simpleProfile;
 
+  /// App setting „Transparenz reduzieren“: glass becomes an opaque surface (Apple: Reduce Transparency, Session 219).
+  final bool reduceTransparency;
+
   double get minTap => simpleProfile ? 60 : 48;
 
   FasanSettings copyWith({
@@ -134,6 +198,7 @@ class FasanSettings {
     bool? reduceMotion,
     bool? haptics,
     bool? simpleProfile,
+    bool? reduceTransparency,
   }) =>
       FasanSettings(
         style: style ?? this.style,
@@ -145,6 +210,7 @@ class FasanSettings {
         reduceMotion: reduceMotion ?? this.reduceMotion,
         haptics: haptics ?? this.haptics,
         simpleProfile: simpleProfile ?? this.simpleProfile,
+        reduceTransparency: reduceTransparency ?? this.reduceTransparency,
       );
 
   /// Combines the user's battery mode with the device state.
@@ -172,6 +238,7 @@ class FasanSettings {
         'reduceMotion': reduceMotion,
         'haptics': haptics,
         'simpleProfile': simpleProfile,
+        'reduceTransparency': reduceTransparency,
       });
 
   static FasanSettings decode(String? s) {
@@ -190,6 +257,7 @@ class FasanSettings {
         reduceMotion: j['reduceMotion'] as bool? ?? false,
         haptics: j['haptics'] as bool? ?? true,
         simpleProfile: j['simpleProfile'] as bool? ?? false,
+        reduceTransparency: j['reduceTransparency'] as bool? ?? false,
       );
     } catch (_) {
       return const FasanSettings();
