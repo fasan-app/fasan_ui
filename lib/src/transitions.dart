@@ -79,3 +79,29 @@ class FasanOpenContainer extends StatelessWidget {
     );
   }
 }
+
+
+/// Switches between neighbouring views with a shared horizontal axis (the new view slides in from the side the user
+/// swiped to, Material motion „shared axis“; used for swiping between scan / original / digital). Without motion: fade.
+class FasanSlideSwitch extends StatelessWidget {
+  const FasanSlideSwitch({super.key, required this.child, this.reverse = false});
+
+  /// Give the child a key that changes with the view.
+  final Widget child;
+
+  /// True when the new view lies before the old one (swipe to the right).
+  final bool reverse;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = FasanMotion.of(context);
+    return PageTransitionSwitcher(
+      reverse: reverse,
+      duration: m.enabled ? const Duration(milliseconds: 320) : const Duration(milliseconds: 120),
+      transitionBuilder: (child, a, b) => m.enabled
+          ? SharedAxisTransition(animation: a, secondaryAnimation: b, transitionType: SharedAxisTransitionType.horizontal, fillColor: Colors.transparent, child: child)
+          : FadeTransition(opacity: a, child: child),
+      child: child,
+    );
+  }
+}

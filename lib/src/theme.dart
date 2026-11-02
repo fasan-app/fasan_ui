@@ -355,7 +355,42 @@ abstract final class FasanThemes {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(l.radius))),
         showDragHandle: true,
       ),
-      snackBarTheme: SnackBarThemeData(behavior: SnackBarBehavior.floating, backgroundColor: l.text, contentTextStyle: t(14, FontWeight.w500, c: l.background)),
+      // Overlays follow the style (Nutzer 02.11.: „dunkle Block-Overlays“): surface colour, hairline, the style's radius.
+      // The default dark snack bar (inverseSurface) was a black block in every style.
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: l.surface,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius * 0.8), side: BorderSide(color: l.hairline)),
+        contentTextStyle: t(14, FontWeight.w500),
+        actionTextColor: l.accent,
+        disabledActionTextColor: l.textMuted,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: l.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius), side: BorderSide(color: l.hairline)),
+        titleTextStyle: t(20, FontWeight.w600, ls: -0.2),
+        contentTextStyle: t(14, FontWeight.w400, h: 1.4),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: l.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius * 0.8), side: BorderSide(color: l.hairline)),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(color: l.surface, borderRadius: BorderRadius.circular(l.radius * 0.5), border: Border.all(color: l.hairline)),
+        textStyle: t(12.5, FontWeight.w500),
+      ),
+      // Selection shows by colour only: a check mark made chips wider and the list below jumped (Nutzer 02.11.).
+      chipTheme: ChipThemeData(
+        showCheckmark: false,
+        backgroundColor: l.surfaceAlt,
+        selectedColor: l.accent.withValues(alpha: 0.18),
+        side: BorderSide(color: l.hairline),
+        labelStyle: t(13, FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius * 0.7)),
+      ),
       iconTheme: IconThemeData(color: l.text, size: 22),
     );
   }

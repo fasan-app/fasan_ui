@@ -78,6 +78,9 @@ class _FasanBackdropState extends State<FasanBackdrop> with SingleTickerProvider
 
   void _tick(Duration t) {
     // 24 updates per second: enough for grain and weave, and slow drifts look continuous at that rate.
+    // A stopped and restarted Ticker counts from zero again; without this, `t - _last` stayed negative until the new run
+    // had caught up with the old one (Nutzer 02.11.: Korn bewegte sich nach „Weniger Bewegung“ nicht mehr).
+    if (t < _last) _last = Duration.zero;
     if (t - _last < const Duration(milliseconds: 41)) return;
     _last = t;
     _time.value = FasanClock.seconds;

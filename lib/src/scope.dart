@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:vibration/vibration.dart';
 
 import 'power.dart';
+import 'sound.dart';
 import 'settings.dart';
 import 'theme.dart';
 import 'tokens.dart';
@@ -134,7 +135,7 @@ class FasanHaptics {
   /// For the settings page: play one way regardless of the switches.
   static Future<void> probeSystem(FasanFeel f) => _system(f);
   static Future<void> probeDirect(FasanFeel f) => _direct(f);
-  static Future<void> probeSound() => SystemSound.play(SystemSoundType.click);
+  static Future<void> probeSound() => FasanSound.play(FasanFeel.tap);
 
   Future<void> tap() => _go(FasanFeel.tap, click: true);
   Future<void> confirm() => _go(FasanFeel.confirm);
@@ -142,7 +143,7 @@ class FasanHaptics {
   Future<void> warn() => _go(FasanFeel.warn);
 
   Future<void> _go(FasanFeel f, {bool click = false}) async {
-    if (click && sound) unawaited(SystemSound.play(SystemSoundType.click));
+    if (click && sound) unawaited(FasanSound.play(f));
     if (!enabled) return;
     if (direct) {
       try {

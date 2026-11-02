@@ -190,6 +190,24 @@ class FasanLightEdgePainter extends CustomPainter {
       stops: const [0, 0.6],
     );
     canvas.drawRRect(rr, Paint()..shader = sheen.createShader(rect));
+    // Glare: a soft white patch where the light meets the glass (top left at rest, turns with the tilt) and a faint caustic
+    // along the opposite edge (Nutzer 02.11.: „Glas ist kein Glas“; the shader stage reads the background, this part works
+    // on every device).
+    canvas.save();
+    canvas.clipRRect(rr);
+    final lx = math.cos(angle), ly = math.sin(angle);
+    final glareC = Offset(rect.center.dx + lx * rect.width * 0.34, rect.center.dy + ly * rect.height * 0.34);
+    final glareR = math.max(rect.width, rect.height) * 0.6;
+    canvas.drawCircle(glareC, glareR, Paint()..shader = RadialGradient(colors: [w(dark ? 0.30 : 0.55), w(0)]).createShader(Rect.fromCircle(center: glareC, radius: glareR)));
+    final causticC = Offset(rect.center.dx - lx * rect.width * 0.5, rect.center.dy - ly * rect.height * 0.5);
+    final causticR = math.max(rect.width, rect.height) * 0.45;
+    canvas.drawCircle(causticC, causticR, Paint()..shader = RadialGradient(colors: [w(dark ? 0.12 : 0.22), w(0)]).createShader(Rect.fromCircle(center: causticC, radius: causticR)));
+    canvas.restore();
+    // inner edge: a thin darker line just inside the bright rim gives the glass thickness
+    canvas.drawRRect(rr.deflate(1.4), Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = Colors.black.withValues(alpha: (dark ? 0.22 : 0.07) * strength.clamp(0.0, 1.0)));
   }
 
   @override
@@ -564,7 +582,6 @@ class FasanPersonChip extends StatelessWidget {
                     .textTheme
                     .labelLarge!
                     .copyWith(color: selected ? FasanPeople.on(l.brightness) : l.text)),
-            if (selected) ...[const SizedBox(width: 6), Icon(Icons.check_rounded, size: 18, color: FasanPeople.on(l.brightness))],
           ]),
         ),
       ),
@@ -790,5 +807,75 @@ class FasanLabel extends StatelessWidget {
     final base = Theme.of(context).textTheme.labelMedium!;
     final style = l.style.cinematic ? base.copyWith(fontFamily: l.monoFamily, package: l.fontPackage) : base;
     return SizedBox(height: 18, child: Text(text, style: style, maxLines: 1, overflow: TextOverflow.ellipsis));
+  }
+}
+
+
+/// Shows or hides [child] with a smooth size change and fade (Nutzer 02.11.: wenn eine Änderung im Menü weitere Unterpunkte
+/// einblendet, dürfen die Zeilen darunter nicht springen). Same idea as Apple's guidance to animate state-driven layout
+/// changes (SwiftUI `withAnimation`, HIG „Motion“): the size animates, the content fades, both with the style's curve.
+/// Without motion it switches at once.
+class FasanReveal extends StatelessWidget {
+  const FasanReveal({super.key, required this.show, required this.child});
+
+  final bool show;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = FasanMotion.of(context);
+    // Without motion no AnimatedSize: with a zero duration it finishes inside its own layout (Flutter asserts).
+    if (!m.enabled) return show ? child : const SizedBox(width: double.infinity);
+    return AnimatedSize(
+      duration: m.medium,
+      curve: FasanCurves.medium,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: m.medium,
+        switchInCurve: FasanCurves.medium,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (c, a) => FadeTransition(opacity: a, child: c),
+        // old and new child stack at the top, so the size follows the newest one while the old fades out
+        layoutBuilder: (current, previous) => Stack(
+          alignment: Alignment.topCenter,
+          children: [...previous, ?current],
+        ),
+        child: show ? KeyedSubtree(key: const ValueKey('shown'), child: child) : const SizedBox(key: ValueKey('hidden'), width: double.infinity),
+      ),
+    );
+  }
+}
+
+/// A switch row that gives feedback: haptic tick and click when it is toggled (Nutzer 02.11.: Schalter im Menü blieben
+/// still). Material's [SwitchListTile] has none of its own.
+class FasanSwitchTile extends StatelessWidget {
+  const FasanSwitchTile({super.key, required this.title, required this.value, required this.onChanged, this.subtitle, this.secondary, this.padded = false});
+
+  final Widget title;
+  final Widget? secondary;
+
+  /// Default list padding (true) or none (false, used inside cards and padded pages).
+  final bool padded;
+  final Widget? subtitle;
+  final bool value;
+
+  /// Null disables the row.
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      contentPadding: padded ? null : EdgeInsets.zero,
+      secondary: secondary,
+      title: title,
+      subtitle: subtitle,
+      value: value,
+      onChanged: onChanged == null
+          ? null
+          : (v) {
+              FasanHaptics.of(context).tap();
+              onChanged!(v);
+            },
+    );
   }
 }

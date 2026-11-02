@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:fasan_ui/fasan_ui.dart';
 import 'package:flutter/material.dart';
@@ -238,14 +239,62 @@ void main() {
         return null;
       });
       addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      FasanSound.disabled = true; // no audio plugin in the test environment
+      addTearDown(() => FasanSound.disabled = false);
       late FasanHaptics h;
       await tester.pumpWidget(Builder(builder: (c) {
         h = FasanHaptics.of(c);
         return const SizedBox();
       }));
       await h.tap();
+      // the tone starts in the background: without the audio plugin it falls back to the system click a moment later
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
       expect(calls, contains('HapticFeedback.vibrate:HapticFeedbackType.selectionClick'));
       expect(calls.any((c) => c.startsWith('SystemSound.play')), isTrue, reason: 'Klick-Ton an');
     });
+  });
+
+  group('Filmkorn nach AV1', () {
+    test('Vorlage: 82×73, Mittel 0, Streuung 1, reproduzierbar', () {
+      final a = grainTemplateValues(seed: 7), b = grainTemplateValues(seed: 7), c = grainTemplateValues(seed: 8);
+      expect(a.length, 82 * 73);
+      expect(a, b);
+      expect(a, isNot(c));
+      final mean = a.reduce((x, y) => x + y) / a.length;
+      final variance = a.fold<double>(0, (s, v) => s + (v - mean) * (v - mean)) / a.length;
+      expect(mean.abs(), lessThan(1e-6));
+      expect(variance, closeTo(1, 1e-3));
+    });
+
+    test('Vorlage ist räumlich korreliert (kein weißes Rauschen)', () {
+      const w = grainTemplateW, h = grainTemplateH;
+      double corr(Float32List g, int dx, int dy) {
+        var s = 0.0, n = 0;
+        for (var y = 0; y < h - dy; y++) {
+          for (var x = 0; x < w - dx; x++) {
+            s += g[y * w + x] * g[(y + dy) * w + x + dx];
+            n++;
+          }
+        }
+        return s / n;
+      }
+
+      final g = grainTemplateValues();
+      expect(corr(g, 1, 0), greaterThan(0.2), reason: 'Nachbarn gehören zusammen');
+      expect(corr(g, 0, 1), greaterThan(0.2));
+      expect(corr(g, 8, 8).abs(), lessThan(0.15), reason: 'weit entfernte Punkte nicht');
+    });
+  });
+
+  test('Eigene Töne: gültige WAV-Datei, Länge passt, Anfang ohne Knacken', () {
+    final w = fasanTone(partials: const [(1900, 1)], ms: 40, decayMs: 9);
+    final bd = ByteData.sublistView(w);
+    expect(String.fromCharCodes(w.sublist(0, 4)), 'RIFF');
+    expect(String.fromCharCodes(w.sublist(8, 12)), 'WAVE');
+    final n = (22050 * 40 / 1000).round();
+    expect(w.length, 44 + n * 2);
+    expect(bd.getUint32(40, Endian.little), n * 2);
+    expect(bd.getInt16(44, Endian.little).abs(), lessThan(200), reason: 'weicher Einsatz');
+    expect([for (var i = 0; i < n; i++) bd.getInt16(44 + i * 2, Endian.little).abs()].reduce(math.max), greaterThan(8000));
   });
 }

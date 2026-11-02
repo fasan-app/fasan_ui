@@ -1,4 +1,7 @@
 // fasan_ui – film grain and old-film artefacts as an overlay (Paint.shader, reads no image). MPL-2.0
+// 0.1.23: grain after the AV1 film grain synthesis (spec 7.18.3; Norkin/Birkbeck, DCC 2018): a 82×73 template made by an
+// autoregressive filter (Dart), 32×32 blocks with a random offset into the template per frame, 2 px overlap between
+// blocks, strength by brightness. Correlated, no longer white „ISO noise“ (Nutzer 02.11.).
 // Basis: docs/recherche/2026-11-02-filmkorn-alter-film.md (Newson 2017 / AV1: Gaussian grain, new per frame and
 // independent per place, strength by brightness; Hoskins „Hash without Sine“, MIT). Flutter shader rules:
 // docs.flutter.dev/ui/design/graphics/fragment-shaders (float uniforms only, set in declaration order).
@@ -27,6 +30,7 @@ uniform float uDust;     // 12   0…1 dust and lint
 uniform float uScratch;  // 13   0…1 vertical scratches
 uniform float uVignette; // 14   0…1 darker corners
 uniform float uWarm;     // 15   0…1 warm cast of old print stock
+uniform sampler2D uTemplate; // AV1-style grain template 82×73, red channel = 0.5 + value/6 (value ≈ N(0,1))
 
 out vec4 fragColor;
 
@@ -51,6 +55,43 @@ vec3 gauss3(vec3 key) {
   return vec3(r1 * cos(6.2831853 * a.y), r1 * sin(6.2831853 * a.y), r2 * cos(6.2831853 * b));
 }
 
+const vec2 TEMPLATE = vec2(82.0, 73.0);
+
+float templateAt(vec2 texel) {
+  return (texture(uTemplate, (texel + 0.5) / TEMPLATE).r - 0.5) * 6.0;
+}
+
+// value of one block's chunk of the template at grain pixel `pos`; the chunk is 34×34 (32 + 2 px overlap)
+float blockVal(vec2 pos, vec2 blk, float seed) {
+  vec3 h = hash33(vec3(mod(blk, 251.0), seed));
+  vec2 off = floor(vec2(h.x * 48.99, h.y * 39.99));
+  return templateAt(pos - blk * 32.0 + off);
+}
+
+// AV1 grain at grain pixel `pos`: block offset per frame, 2 px overlap with the left and upper block (weights 27/17, 17/27 of 32)
+float av1Grain(vec2 pos, float seed) {
+  vec2 b = floor(pos / 32.0);
+  vec2 l = pos - b * 32.0;
+  float v = blockVal(pos, b, seed);
+  if (l.x < 2.0 && b.x > 0.0) {
+    float o = blockVal(pos, b - vec2(1.0, 0.0), seed);
+    float wo = l.x < 1.0 ? 0.84375 : 0.53125, wn = l.x < 1.0 ? 0.53125 : 0.84375;
+    v = (wo * o + wn * v) / sqrt(wo * wo + wn * wn);
+  }
+  if (l.y < 2.0 && b.y > 0.0) {
+    float o = blockVal(pos, b - vec2(0.0, 1.0), seed);
+    float wo = l.y < 1.0 ? 0.84375 : 0.53125, wn = l.y < 1.0 ? 0.53125 : 0.84375;
+    v = (wo * o + wn * v) / sqrt(wo * wo + wn * wn);
+  }
+  return v;
+}
+
+// three channels: luma grain and two more draws for colour noise, each with its own block offsets
+vec3 av1Field(vec2 frag, float cell, float seed) {
+  vec2 pos = floor(frag / cell);
+  return vec3(av1Grain(pos, seed), av1Grain(pos, seed + 17.0), av1Grain(pos, seed + 41.0));
+}
+
 // cell noise with variance 1; cell indices wrapped to 251 (prime) to keep hash inputs small on every precision
 vec3 grainField(vec2 p, float cell, float soft, float seed) {
   vec2 q = p / cell;
@@ -72,14 +113,15 @@ void main() {
 
   // grain: fine layer + clump layer, variance kept; luma/chroma split
   if (uGrain > 0.0) {
-    vec3 g1 = grainField(frag, uCell, uSoft, uSeed);
-    vec3 g2 = grainField(frag, uCell * 2.6, uSoft, uSeed + 31.0);
+    vec3 g1 = av1Field(frag, uCell, uSeed);
+    vec3 g2 = av1Field(frag, uCell * 2.6, uSeed + 31.0);
     vec3 g = g1 * sqrt(1.0 - uClump) + g2 * sqrt(uClump);
     float l = (g.x + g.y + g.z) * 0.57735027;
     vec3 gc = (g - vec3(l * 0.57735027)) * 1.2247449;
     vec3 gn = sqrt(1.0 - uChroma) * vec3(l) + sqrt(uChroma) * gc;
-    // film response: bell over brightness, strongest in the mid-tones (Bernoulli variance u(1−u), research §1.2)
-    float resp = 0.35 + 2.6 * uLuma * (1.0 - uLuma);
+    // AV1 scaling function: piecewise linear in the brightness, strongest in the mid-tones, weak in shadows and highlights
+    float y = clamp(uLuma, 0.0, 1.0);
+    float resp = y < 0.25 ? mix(0.55, 0.9, y / 0.25) : (y < 0.5 ? mix(0.9, 1.15, (y - 0.25) / 0.25) : (y < 0.75 ? mix(1.15, 0.85, (y - 0.5) / 0.25) : mix(0.85, 0.5, (y - 0.75) / 0.25)));
     add += gn * uGrain * 0.11 * resp;
   }
 

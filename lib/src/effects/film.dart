@@ -17,6 +17,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../settings.dart';
 import 'backdrop.dart';
+import 'grain_template.dart';
 
 class FasanFilm extends StatefulWidget {
   const FasanFilm({super.key, required this.child, this.effects});
@@ -27,12 +28,16 @@ class FasanFilm extends StatefulWidget {
   final FilmEffectSettings? effects;
 
   static ui.FragmentProgram? grainProgram;
+
+  /// The AV1-style grain template as a texture for the shader (null until loaded).
+  static ui.Image? grainTemplate;
   static Future<void>? _loading;
 
   /// Loads the grain shader once. Fails quietly where shaders are unavailable (unit tests): grain is optional.
   static Future<void> ensureLoaded() => _loading ??= () async {
         try {
           grainProgram = await ui.FragmentProgram.fromAsset('packages/fasan_ui/shaders/grain.frag');
+          grainTemplate = await makeGrainTemplate();
         } catch (_) {
           grainProgram = null;
         }
@@ -69,6 +74,9 @@ class _FasanFilmState extends State<FasanFilm> with SingleTickerProviderStateMix
   }
 
   void _tick(Duration t) {
+    // A stopped and restarted Ticker counts from zero again; without this, `t - _last` stayed negative until the new run
+    // had caught up with the old one (Nutzer 02.11.: Korn bewegte sich nach „Weniger Bewegung“ nicht mehr).
+    if (t < _last) _last = Duration.zero;
     if (t - _last < const Duration(milliseconds: 41)) return;
     _last = t;
     _time.value = FasanClock.seconds;
@@ -142,6 +150,9 @@ class FasanGrainPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final tpl = FasanFilm.grainTemplate;
+    if (tpl == null) return; // not loaded yet
+    shader.setImageSampler(0, tpl);
     final t = time?.value ?? 0;
     // A new, independent grain image per grain frame (research §2.1). The seed is kept below 241 so hash inputs stay
     // small (precision); the sequence repeats only after 241 frames (10 s at 24 fps) and is scrambled by 37.

@@ -70,11 +70,11 @@ class FilmEffectSettings {
     this.dust = 0.35,
     this.scratches = 0.25,
     this.vignette = 0.4,
-    this.warmth = 0.3,
+    this.warmth = 0.0,
     this.vignetteOn = false,
-    this.glow = 0.5,
-    this.halation = 0.35,
-    this.bleed = 0.25,
+    this.glow = 0.75,
+    this.halation = 0.5,
+    this.bleed = 0.45,
     this.weave = 0.4,
     this.layer = FasanFilmLayer.ground,
     this.gradient = true,
@@ -160,7 +160,7 @@ class FilmEffectSettings {
       );
 
   Map<String, Object> toJson() => {
-        'v': 3,
+        'v': 4,
         'enabled': enabled,
         'grain': grain,
         'grainSize': grainSize,
@@ -189,7 +189,9 @@ class FilmEffectSettings {
     const z = FilmEffectSettings();
     // Older versions stored defaults the user never chose (v1: invisible grain; v2 in 0.1.13: grain far too coarse and
     // strong, emulator pictures 02.11.). Start from the current defaults and keep only an explicit „aus“.
-    if (j['v'] != 3) return FilmEffectSettings(enabled: j['enabled'] as bool? ?? true);
+    // v4 (02.11. abends): warm cast off by default (the film styles tinted the whole background red), glow, halation and
+    // „Überstrahlen“ stronger (they were not visible), AV1-style grain.
+    if (j['v'] != 4) return FilmEffectSettings(enabled: j['enabled'] as bool? ?? true);
     double d(String k, double v) => (j[k] as num?)?.toDouble().clamp(0.0, 1.0) ?? v;
     bool b(String k, bool v) => j[k] as bool? ?? v;
     return FilmEffectSettings(
