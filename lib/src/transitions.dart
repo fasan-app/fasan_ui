@@ -73,7 +73,8 @@ class FasanOpenContainer extends StatelessWidget {
       transitionType: ContainerTransitionType.fadeThrough,
       transitionDuration: m.enabled ? const Duration(milliseconds: 420) : const Duration(milliseconds: 150),
       onClosed: onClosed == null ? null : (_) => onClosed!(),
-      closedBuilder: closedBuilder,
+      // During the transition the closed card is drawn in the overlay, outside the page's Material: give ink a surface.
+      closedBuilder: (context, open) => Material(type: MaterialType.transparency, child: closedBuilder(context, open)),
       openBuilder: (context, _) => openBuilder(context),
     );
   }
