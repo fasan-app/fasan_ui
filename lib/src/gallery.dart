@@ -347,7 +347,7 @@ class FasanSample extends StatelessWidget {
     Widget content = Padding(
       padding: const EdgeInsets.fromLTRB(FasanSpace.l, FasanSpace.l, FasanSpace.l, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        FasanLabel(l.style.cinematic ? 'REF 0427 · LIS' : 'Lissabon'),
+        FasanLabel('Lissabon'),
         const SizedBox(height: 4),
         Text(t.sample, style: tt.titleLarge),
         Text(t.sampleSub, style: tt.bodySmall),

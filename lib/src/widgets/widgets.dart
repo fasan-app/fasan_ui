@@ -299,16 +299,15 @@ class FasanButton extends StatelessWidget {
       FasanButtonKind.secondary => (l.surfaceAlt, l.text, null),
       FasanButtonKind.quiet => (Colors.transparent, l.accent, l.hairline),
     };
-    final cine = l.style.cinematic;
     final content = Row(
       mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (icon != null) ...[Icon(icon, size: 20, color: fg), const SizedBox(width: FasanSpace.s)],
-        Flexible(child: Text(cine ? label.toUpperCase() : label, style: t.copyWith(color: fg), overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(label, style: t.copyWith(color: fg), overflow: TextOverflow.ellipsis)),
       ],
     );
-    final radius = l.style == FasanStyle.braun || cine ? l.radius : 999.0;
+    final radius = l.buttonRadius;
     final lit = l.style.glass && kind != FasanButtonKind.quiet && !disabled;
     Widget body = Container(
       constraints: BoxConstraints(minHeight: l.minTap, minWidth: expand ? double.infinity : 0),
@@ -326,8 +325,8 @@ class FasanButton extends StatelessWidget {
         child: body,
       );
     }
-    if ((glow ?? kind == FasanButtonKind.primary) && !disabled && l.style != FasanStyle.braun) {
-      body = FasanGlow(radius: radius, strength: 0.8, child: body);
+    if ((glow ?? kind == FasanButtonKind.primary) && !disabled && l.glowScale > 0) {
+      body = FasanGlow(radius: radius, strength: 0.8 * l.glowScale, child: body);
     }
     return Opacity(
       opacity: disabled ? 0.45 : 1,
@@ -747,7 +746,9 @@ class FasanLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = FasanLook.of(context);
-    if (l.style.cinematic) return Text(text.toUpperCase(), style: l.mono(11, weight: FontWeight.w500));
-    return Text(text, style: Theme.of(context).textTheme.labelMedium);
+    // same box in every style (norm against jumping): one line, fixed height; only the family changes
+    final base = Theme.of(context).textTheme.labelMedium!;
+    final style = l.style.cinematic ? base.copyWith(fontFamily: l.monoFamily, package: l.fontPackage) : base;
+    return SizedBox(height: 18, child: Text(text, style: style, maxLines: 1, overflow: TextOverflow.ellipsis));
   }
 }

@@ -34,6 +34,8 @@ class FasanLook extends ThemeExtension<FasanLook> {
     required this.fontPackage,
     this.blobs = const [],
     this.reduceTransparency = false,
+    this.buttonRadius = 24,
+    this.glowScale = 1,
   });
 
   final FasanStyle style;
@@ -57,6 +59,12 @@ class FasanLook extends ThemeExtension<FasanLook> {
 
   /// Glass drawn opaque (app setting „Transparenz reduzieren“, saving power, or high contrast).
   final bool reduceTransparency;
+
+  /// Corner radius of buttons; finite so a style change morphs (a pill is minTap / 2 = 24).
+  final double buttonRadius;
+
+  /// 0 = no glow (Braun: light from lamps, not halos) … 1; interpolated on style change.
+  final double glowScale;
 
   bool get saving => level != FasanPowerLevel.full;
 
@@ -100,6 +108,8 @@ class FasanLook extends ThemeExtension<FasanLook> {
         fontPackage: fontPackage,
         blobs: blobs,
         reduceTransparency: reduceTransparency,
+        buttonRadius: buttonRadius,
+        glowScale: glowScale,
       );
 
   @override
@@ -129,6 +139,8 @@ class FasanLook extends ThemeExtension<FasanLook> {
       fontPackage: t < 0.5 ? fontPackage : other.fontPackage,
       blobs: blobs.length == other.blobs.length ? [for (var i = 0; i < blobs.length; i++) c(blobs[i], other.blobs[i])] : (t < 0.5 ? blobs : other.blobs),
       reduceTransparency: t < 0.5 ? reduceTransparency : other.reduceTransparency,
+      buttonRadius: buttonRadius + (other.buttonRadius - buttonRadius) * t,
+      glowScale: glowScale + (other.glowScale - glowScale) * t,
     );
   }
 }
@@ -215,6 +227,7 @@ abstract final class FasanThemes {
           glassBlur: 0,
           radius: FasanRadius.s,
           minTap: s.minTap, fontFamily: family, monoFamily: mono, fontPackage: pkg,
+          buttonRadius: FasanRadius.s, glowScale: 0,
         );
       case FasanStyle.machine:
       case FasanStyle.sciFi:
@@ -245,6 +258,7 @@ abstract final class FasanThemes {
           glassBlur: blurOk ? 12 : 0,
           radius: FasanRadius.s,
           minTap: s.minTap, fontFamily: family, monoFamily: mono, fontPackage: pkg,
+          buttonRadius: FasanRadius.s,
         );
     }
   }
@@ -292,18 +306,20 @@ abstract final class FasanThemes {
         // fontFamily must be repeated: these styles replace the ones ThemeData(fontFamily:) filled in, and a new
         // TextStyle without a family falls back to the platform font (bug in 0.1: Inter/Geist never showed).
         TextStyle(fontFamily: family, fontSize: size * scale, fontWeight: w, height: h, letterSpacing: ls, color: c ?? l.text);
-    final cine = s.style.cinematic;
+    // Norm (Nutzer 02.11.: „beim Wechseln der Stile springt die Anzeige“): every style has the same text metrics –
+    // size, line height, letter spacing. Styles differ in colour, material and font family only; geometry that must
+    // differ (radii, glow) lives in FasanLook and is interpolated by AnimatedTheme (MaterialApp.themeAnimationDuration).
     return base.copyWith(
       textTheme: base.textTheme.copyWith(
         displaySmall: t(34, FontWeight.w600, h: 1.1, ls: -0.6),
         headlineSmall: t(24, FontWeight.w600, h: 1.15, ls: -0.3),
         titleLarge: t(20, FontWeight.w600, h: 1.2, ls: -0.2),
-        titleMedium: t(16, FontWeight.w600, ls: cine ? 0.4 : 0),
+        titleMedium: t(16, FontWeight.w600),
         bodyLarge: t(16, FontWeight.w400, h: 1.4),
         bodyMedium: t(14, FontWeight.w400, h: 1.4),
         bodySmall: t(12.5, FontWeight.w400, c: l.textMuted),
-        labelLarge: t(15, FontWeight.w600, ls: cine ? 1.0 : 0.1),
-        labelMedium: t(13, FontWeight.w500, c: l.textMuted, ls: cine ? 0.8 : 0.1),
+        labelLarge: t(15, FontWeight.w600, ls: 0.1),
+        labelMedium: t(13, FontWeight.w500, c: l.textMuted, ls: 0.1),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: l.accent,

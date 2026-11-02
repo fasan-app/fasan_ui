@@ -198,4 +198,22 @@ void main() {
     expect(FasanFilm.coversWhole(inner), isTrue);
     await tester.pumpWidget(const SizedBox());
   });
+
+  test('Norm: alle Stile haben dieselben Textmaße (kein Springen beim Wechsel)', () {
+    final ref = FasanThemes.theme(const FasanSettings(), Brightness.light, FasanPowerLevel.full).textTheme;
+    for (final st in FasanStyle.values) {
+      final t = FasanThemes.theme(FasanSettings(style: st), Brightness.light, FasanPowerLevel.full).textTheme;
+      for (final (a, b) in [(t.bodyMedium!, ref.bodyMedium!), (t.labelLarge!, ref.labelLarge!), (t.labelMedium!, ref.labelMedium!), (t.titleMedium!, ref.titleMedium!), (t.titleLarge!, ref.titleLarge!)]) {
+        expect([a.fontSize, a.height, a.letterSpacing], [b.fontSize, b.height, b.letterSpacing], reason: st.name);
+      }
+    }
+  });
+
+  test('Norm: Knopf-Radius und Glow werden beim Stilwechsel überblendet, nicht umgeschaltet', () {
+    final a = FasanThemes.look(const FasanSettings(), Brightness.light, FasanPowerLevel.full);
+    final b = FasanThemes.look(const FasanSettings(style: FasanStyle.braun), Brightness.light, FasanPowerLevel.full);
+    final m = a.lerp(b, 0.5);
+    expect(m.buttonRadius, closeTo((a.buttonRadius + b.buttonRadius) / 2, 1e-9));
+    expect(m.glowScale, closeTo(0.5, 1e-9));
+  });
 }
