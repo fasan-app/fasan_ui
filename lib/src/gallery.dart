@@ -109,6 +109,18 @@ class FasanStrings {
   String get motion => de ? 'Weniger Bewegung' : 'Reduce motion';
   String get motionHint => de ? 'Die Systemoption „Animationen entfernen“ gilt immer.' : 'The system option "Remove animations" always applies.';
   String get haptics => de ? 'Haptik' : 'Haptics';
+  String get hapticsDirect => de ? 'Direkte Vibration' : 'Direct vibration';
+  String get hapticsDirectHint => de
+      ? 'Nutzt den Vibrationsmotor direkt. Aus: Touch-Rückmeldung des Systems.'
+      : 'Uses the vibration motor directly. Off: the system touch feedback.';
+  String get sound => de ? 'Klick-Ton' : 'Click sound';
+  String get soundHint => de
+      ? 'Kurzer Systemklick. Hörbar nur, wenn die Touch-Töne des Handys an sind.'
+      : 'Short system click. Audible only if the phone\'s touch sounds are on.';
+  String get probeTitle => de ? 'Rückmeldung testen' : 'Test feedback';
+  String get probeSystem => de ? 'System-Haptik' : 'System haptics';
+  String get probeDirect => de ? 'Vibrator' : 'Vibrator';
+  String get probeSound => de ? 'Klick-Ton' : 'Click sound';
   String get simple => de ? 'Große Bedienung' : 'Large controls';
   String get preview => de ? 'Vorschau' : 'Preview';
   String get compare => de ? 'Alle Stile' : 'All styles';
@@ -269,6 +281,29 @@ class FasanAppearancePage extends StatelessWidget {
             onChanged: (v) => c.update((o) => o.copyWith(reduceMotion: v)),
           ),
           SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(t.haptics), value: s.haptics, onChanged: (v) => c.update((o) => o.copyWith(haptics: v))),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t.hapticsDirect),
+            subtitle: Text(t.hapticsDirectHint),
+            value: s.hapticsDirect,
+            onChanged: s.haptics ? (v) => c.update((o) => o.copyWith(hapticsDirect: v)) : null,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t.sound),
+            subtitle: Text(t.soundHint),
+            value: s.sound,
+            onChanged: (v) => c.update((o) => o.copyWith(sound: v)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: FasanSpace.s),
+            child: Wrap(spacing: FasanSpace.s, runSpacing: FasanSpace.s, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              Text(t.probeTitle, style: Theme.of(context).textTheme.labelLarge),
+              OutlinedButton(onPressed: () => FasanHaptics.probeSystem(FasanFeel.snap), child: Text(t.probeSystem)),
+              OutlinedButton(onPressed: () => FasanHaptics.probeDirect(FasanFeel.snap), child: Text(t.probeDirect)),
+              OutlinedButton(onPressed: FasanHaptics.probeSound, child: Text(t.probeSound)),
+            ]),
+          ),
           SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(t.simple), value: s.simpleProfile, onChanged: (v) => c.update((o) => o.copyWith(simpleProfile: v))),
         ],
       ),

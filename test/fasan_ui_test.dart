@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:fasan_ui/fasan_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// WCAG 2.x relative luminance and contrast ratio (w3.org/TR/WCAG21/#dfn-contrast-ratio).
@@ -215,5 +216,36 @@ void main() {
     final m = a.lerp(b, 0.5);
     expect(m.buttonRadius, closeTo((a.buttonRadius + b.buttonRadius) / 2, 1e-9));
     expect(m.glowScale, closeTo(0.5, 1e-9));
+  });
+
+  group('Rückmeldung', () {
+    test('Einstellungen: Klick-Ton und direkte Vibration sind Standard an und überstehen Speichern/Laden', () {
+      expect(const FasanSettings().sound, isTrue);
+      expect(const FasanSettings().hapticsDirect, isTrue);
+      final off = FasanSettings.decode(const FasanSettings(sound: false, hapticsDirect: false).encode());
+      expect(off.sound, isFalse);
+      expect(off.hapticsDirect, isFalse);
+      // alte gespeicherte Einstellungen ohne die neuen Felder
+      final old = FasanSettings.decode('{"haptics": true}');
+      expect(old.sound, isTrue);
+      expect(old.hapticsDirect, isTrue);
+    });
+
+    testWidgets('ohne Vibrator-Plugin fällt die direkte Vibration auf die System-Haptik zurück', (tester) async {
+      final calls = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        calls.add('${call.method}:${call.arguments}');
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      late FasanHaptics h;
+      await tester.pumpWidget(Builder(builder: (c) {
+        h = FasanHaptics.of(c);
+        return const SizedBox();
+      }));
+      await h.tap();
+      expect(calls, contains('HapticFeedback.vibrate:HapticFeedbackType.selectionClick'));
+      expect(calls.any((c) => c.startsWith('SystemSound.play')), isTrue, reason: 'Klick-Ton an');
+    });
   });
 }

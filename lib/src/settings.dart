@@ -232,6 +232,8 @@ class FasanSettings {
     this.battery = FasanBatteryMode.auto,
     this.reduceMotion = false,
     this.haptics = true,
+    this.hapticsDirect = true,
+    this.sound = true,
     this.simpleProfile = false,
     this.reduceTransparency = false,
   });
@@ -246,6 +248,13 @@ class FasanSettings {
   /// App setting "Weniger Bewegung"; the system option "Animationen entfernen" applies in addition.
   final bool reduceMotion;
   final bool haptics;
+
+  /// Vibrate through the Vibrator service instead of Android's touch feedback (Nutzer 02.11.: auf dem S23 blieb
+  /// `HapticFeedback` trotz eingeschalteter Systemvibration stumm).
+  final bool hapticsDirect;
+
+  /// Short system click on taps (`SystemSound`; Android plays it only while the system's touch sounds are on).
+  final bool sound;
 
   /// Profile "Einfach": larger tap areas (60 dp) and text.
   final bool simpleProfile;
@@ -264,6 +273,8 @@ class FasanSettings {
     FasanBatteryMode? battery,
     bool? reduceMotion,
     bool? haptics,
+    bool? hapticsDirect,
+    bool? sound,
     bool? simpleProfile,
     bool? reduceTransparency,
   }) =>
@@ -276,6 +287,8 @@ class FasanSettings {
         battery: battery ?? this.battery,
         reduceMotion: reduceMotion ?? this.reduceMotion,
         haptics: haptics ?? this.haptics,
+        hapticsDirect: hapticsDirect ?? this.hapticsDirect,
+        sound: sound ?? this.sound,
         simpleProfile: simpleProfile ?? this.simpleProfile,
         reduceTransparency: reduceTransparency ?? this.reduceTransparency,
       );
@@ -304,6 +317,8 @@ class FasanSettings {
         'battery': battery.name,
         'reduceMotion': reduceMotion,
         'haptics': haptics,
+        'hapticsDirect': hapticsDirect,
+        'sound': sound,
         'simpleProfile': simpleProfile,
         'reduceTransparency': reduceTransparency,
       });
@@ -323,6 +338,8 @@ class FasanSettings {
         battery: pick(FasanBatteryMode.values, j['battery'], FasanBatteryMode.auto),
         reduceMotion: j['reduceMotion'] as bool? ?? false,
         haptics: j['haptics'] as bool? ?? true,
+        hapticsDirect: j['hapticsDirect'] as bool? ?? true,
+        sound: j['sound'] as bool? ?? true,
         simpleProfile: j['simpleProfile'] as bool? ?? false,
         reduceTransparency: j['reduceTransparency'] as bool? ?? false,
       );

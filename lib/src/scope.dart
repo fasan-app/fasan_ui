@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 
 import 'power.dart';
 import 'settings.dart';
@@ -112,17 +113,70 @@ class FasanMotion {
   SpringDescription get springSoft => SpringDescription.withDampingRatio(mass: 1, stiffness: 260, ratio: 0.72);
 }
 
-/// Haptics via Flutter's HapticFeedback (api.flutter.dev/flutter/services/HapticFeedback-class.html).
-/// Standard on (Beschluss 01.11.), switchable in the settings.
+/// Strength of one feedback.
+enum FasanFeel { tap, confirm, snap, warn }
+
+/// Haptics and a small click. Two ways to vibrate: Flutter's `HapticFeedback` (Android touch feedback, follows the system
+/// setting; api.flutter.dev/flutter/services/HapticFeedback-class.html) and the Vibrator service through the `vibration`
+/// plugin (`hapticsDirect`, needs VIBRATE in the app manifest). Standard on (Beschluss 01.11.), switchable in the settings.
+/// The click is `SystemSound` (api.flutter.dev/flutter/services/SystemSoundType.html): on Android only `click`, played
+/// while the system's touch sounds are on, so the silent mode silences it (nicht auf One UI geprüft).
 class FasanHaptics {
-  const FasanHaptics._(this.enabled);
+  const FasanHaptics._(this.enabled, this.direct, this.sound);
 
-  final bool enabled;
+  final bool enabled, direct, sound;
 
-  static FasanHaptics of(BuildContext context) => FasanHaptics._(FasanScope.maybeOf(context)?.settings.haptics ?? true);
+  static FasanHaptics of(BuildContext context) {
+    final s = FasanScope.maybeOf(context)?.settings;
+    return FasanHaptics._(s?.haptics ?? true, s?.hapticsDirect ?? true, s?.sound ?? true);
+  }
 
-  Future<void> tap() => enabled ? HapticFeedback.selectionClick() : Future.value();
-  Future<void> confirm() => enabled ? HapticFeedback.lightImpact() : Future.value();
-  Future<void> snap() => enabled ? HapticFeedback.mediumImpact() : Future.value();
-  Future<void> warn() => enabled ? HapticFeedback.heavyImpact() : Future.value();
+  /// For the settings page: play one way regardless of the switches.
+  static Future<void> probeSystem(FasanFeel f) => _system(f);
+  static Future<void> probeDirect(FasanFeel f) => _direct(f);
+  static Future<void> probeSound() => SystemSound.play(SystemSoundType.click);
+
+  Future<void> tap() => _go(FasanFeel.tap, click: true);
+  Future<void> confirm() => _go(FasanFeel.confirm);
+  Future<void> snap() => _go(FasanFeel.snap, click: true);
+  Future<void> warn() => _go(FasanFeel.warn);
+
+  Future<void> _go(FasanFeel f, {bool click = false}) async {
+    if (click && sound) unawaited(SystemSound.play(SystemSoundType.click));
+    if (!enabled) return;
+    if (direct) {
+      try {
+        await _direct(f);
+        return;
+      } catch (_) {
+        // no vibrator plugin (tests, other platforms): fall back to the system feedback
+      }
+    }
+    await _system(f);
+  }
+
+  static Future<void> _system(FasanFeel f) => switch (f) {
+        FasanFeel.tap => HapticFeedback.selectionClick(),
+        FasanFeel.confirm => HapticFeedback.lightImpact(),
+        FasanFeel.snap => HapticFeedback.mediumImpact(),
+        FasanFeel.warn => HapticFeedback.heavyImpact(),
+      };
+
+  static bool? _hasVibrator;
+
+  /// Short pulses; Android ignores very short ones on some motors, so the lightest is 15 ms.
+  static Future<void> _direct(FasanFeel f) async {
+    _hasVibrator ??= await Vibration.hasVibrator();
+    if (_hasVibrator != true) throw StateError('no vibrator');
+    switch (f) {
+      case FasanFeel.tap:
+        await Vibration.vibrate(duration: 15, amplitude: 90);
+      case FasanFeel.confirm:
+        await Vibration.vibrate(duration: 30, amplitude: 140);
+      case FasanFeel.snap:
+        await Vibration.vibrate(duration: 45, amplitude: 190);
+      case FasanFeel.warn:
+        await Vibration.vibrate(pattern: [0, 60, 50, 60], intensities: [0, 220, 0, 220]);
+    }
+  }
 }
