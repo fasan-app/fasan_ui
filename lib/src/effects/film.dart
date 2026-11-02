@@ -35,6 +35,10 @@ class _Programs {
 class FasanFilm extends StatefulWidget {
   const FasanFilm({super.key, required this.child, this.effects});
 
+  /// Glow, halation and light bleeding (ImageFilter.shader). False until the shader renders correctly on Impeller
+  /// OpenGLES and Vulkan; the settings hide their sliders while false.
+  static const bool bloomVerified = false;
+
   final Widget child;
 
   /// Overrides the settings (gallery previews); null = from the theme.
@@ -95,7 +99,10 @@ class _FasanFilmState extends State<FasanFilm> with SingleTickerProviderStateMix
 
     Widget w = RepaintBoundary(child: widget.child);
     final bloom = _bloom;
-    if (full && bloom != null && ui.ImageFilter.isShaderFilterSupported && (fx.glow + fx.halation + fx.bleed) > 0) {
+    // Off until verified on both Impeller backends: on the Android emulator (Impeller OpenGLES) this filter turned the
+    // whole app upside down and smeared text; on a Galaxy S23 a dark box appeared (fasan-diagnose, Emulator-Bilder
+    // 02.11., Nutzer-Bildschirmfotos 0.1.2). Grain and weave do not sample the screen and stay on.
+    if (FasanFilm.bloomVerified && full && bloom != null && ui.ImageFilter.isShaderFilterSupported && (fx.glow + fx.halation + fx.bleed) > 0) {
       bloom
         ..setFloat(2, fx.glow)
         ..setFloat(3, fx.halation)

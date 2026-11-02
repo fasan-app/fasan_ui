@@ -144,9 +144,12 @@ class FasanAppearancePage extends StatelessWidget {
             onChanged: (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(enabled: v))),
           ),
           slider(t.grain, s.effects.grain, (x) => s.effects.copyWith(grain: x)),
-          slider(t.glow, s.effects.glow, (x) => s.effects.copyWith(glow: x)),
-          slider(t.halation, s.effects.halation, (x) => s.effects.copyWith(halation: x)),
-          slider(t.bleed, s.effects.bleed, (x) => s.effects.copyWith(bleed: x)),
+          // only effects that work (Regel: nur zeigen, was wirklich funktioniert); see FasanFilm.bloomVerified
+          if (FasanFilm.bloomVerified) ...[
+            slider(t.glow, s.effects.glow, (x) => s.effects.copyWith(glow: x)),
+            slider(t.halation, s.effects.halation, (x) => s.effects.copyWith(halation: x)),
+            slider(t.bleed, s.effects.bleed, (x) => s.effects.copyWith(bleed: x)),
+          ],
           slider(t.weave, s.effects.weave, (x) => s.effects.copyWith(weave: x)),
           const SizedBox(height: FasanSpace.l),
           FasanLabel(t.batteryLabel),
