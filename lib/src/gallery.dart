@@ -65,6 +65,20 @@ class FasanStrings {
   String get bleed => de ? 'Überstrahlen' : 'Light bleeding';
   String get weave => de ? 'Bildstandwackeln' : 'Gate weave';
   String get grainSize => de ? 'Korngröße' : 'Grain size';
+  String get grainSoft => de ? 'Korn weich' : 'Grain softness';
+  String get grainClump => de ? 'Korn klumpig' : 'Grain clumping';
+  String get grainChroma => de ? 'Farbrauschen' : 'Colour noise';
+  String get oldFilm => de ? 'Alter Film' : 'Old film';
+  String oldFilmName(FasanOldFilm v) => switch (v) {
+        FasanOldFilm.auto => de ? 'Nur Kino-Stile' : 'Cinematic styles',
+        FasanOldFilm.on => de ? 'Immer' : 'Always',
+        FasanOldFilm.off => de ? 'Aus' : 'Off',
+      };
+  String get flicker => de ? 'Flackern' : 'Flicker';
+  String get dust => de ? 'Staub' : 'Dust';
+  String get scratches => de ? 'Kratzer' : 'Scratches';
+  String get vignette => de ? 'Vignette' : 'Vignette';
+  String get warmth => de ? 'Warmer Stich' : 'Warm cast';
   String get grainSpeed => de ? 'Korn-Tempo' : 'Grain speed';
   String get layer => de ? 'Korn und Wackeln' : 'Grain and weave';
   String layerName(FasanFilmLayer v) => switch (v) {
@@ -172,6 +186,25 @@ class FasanAppearancePage extends StatelessWidget {
           slider(t.grain, s.effects.grain, (x) => s.effects.copyWith(grain: x)),
           slider(t.grainSize, s.effects.grainSize, (x) => s.effects.copyWith(grainSize: x)),
           slider(t.grainSpeed, s.effects.grainSpeed, (x) => s.effects.copyWith(grainSpeed: x)),
+          slider(t.grainSoft, s.effects.grainSoft, (x) => s.effects.copyWith(grainSoft: x)),
+          slider(t.grainClump, s.effects.grainClump, (x) => s.effects.copyWith(grainClump: x)),
+          slider(t.grainChroma, s.effects.grainChroma, (x) => s.effects.copyWith(grainChroma: x)),
+          const SizedBox(height: FasanSpace.s),
+          Text(t.oldFilm, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: FasanSpace.s),
+          FasanSegmented<FasanOldFilm>(
+            values: FasanOldFilm.values,
+            selected: s.effects.oldFilm,
+            label: t.oldFilmName,
+            onChanged: (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(oldFilm: v))),
+          ),
+          if (s.effects.oldFilmFor(s.style)) ...[
+            slider(t.flicker, s.effects.flicker, (x) => s.effects.copyWith(flicker: x)),
+            slider(t.dust, s.effects.dust, (x) => s.effects.copyWith(dust: x)),
+            slider(t.scratches, s.effects.scratches, (x) => s.effects.copyWith(scratches: x)),
+            slider(t.vignette, s.effects.vignette, (x) => s.effects.copyWith(vignette: x)),
+            slider(t.warmth, s.effects.warmth, (x) => s.effects.copyWith(warmth: x)),
+          ],
           slider(t.weave, s.effects.weave, (x) => s.effects.copyWith(weave: x)),
           slider(t.glow, s.effects.glow, (x) => s.effects.copyWith(glow: x)),
           slider(t.halation, s.effects.halation, (x) => s.effects.copyWith(halation: x)),

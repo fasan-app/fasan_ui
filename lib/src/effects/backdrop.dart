@@ -102,14 +102,14 @@ class _FasanBackdropState extends State<FasanBackdrop> with SingleTickerProvider
     final st = FasanEffectState.of(context, widget.effects);
     final l = st.look;
     final fx = st.fx;
-    final moving = st.animate && (fx.gradient || fx.lightSweep || fx.grain > 0 || fx.weave > 0);
+    final moving = st.animate && (fx.gradient || fx.lightSweep || fx.grain > 0 || fx.weave > 0 || fx.oldFilmFor(l.style));
     if (moving && !_ticker.isActive) _ticker.start();
     if (!moving && _ticker.isActive) _ticker.stop();
     if (!moving) _time.value = 0;
     _holdTilt(st.tilt && fx.bleed > 0);
-    final grainHere = fx.grain > 0 && (fx.layer == FasanFilmLayer.ground || !FasanFilm.coversWhole(context));
+    final oldFilm = fx.oldFilmFor(l.style);
+    final grainHere = (fx.grain > 0 || oldFilm) && (fx.layer == FasanFilmLayer.ground || !FasanFilm.coversWhole(context));
     final grain = _grain;
-    final dpr = MediaQuery.devicePixelRatioOf(context);
     Widget ground = CustomPaint(
       painter: _GroundPainter(
         look: l,
@@ -123,7 +123,7 @@ class _FasanBackdropState extends State<FasanBackdrop> with SingleTickerProvider
     if (st.on && grainHere && grain != null) {
       ground = Stack(fit: StackFit.expand, children: [
         ground,
-        CustomPaint(painter: FasanGrainPainter(grain, fx, l.brightness, dpr, st.animate ? _time : null)),
+        CustomPaint(painter: FasanGrainPainter(grain, fx, luma: l.background.computeLuminance(), oldFilm: oldFilm, time: st.animate ? _time : null)),
       ]);
     }
     if (st.on && st.animate && fx.weave > 0 && fx.layer == FasanFilmLayer.ground) {

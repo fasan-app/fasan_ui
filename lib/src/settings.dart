@@ -52,13 +52,25 @@ enum FasanPowerLevel { full, save, maximum }
 /// Where grain and weave apply (GESTALTUNG.md §2): only the ground behind content (default) or the whole picture.
 enum FasanFilmLayer { ground, whole }
 
+/// Old-film look (flicker, dust, scratches, vignette, warm cast): auto = on only in the cinematic styles (Nutzer 02.11.).
+enum FasanOldFilm { auto, on, off }
+
 /// Film effects. Intensities 0–1. Defaults are noticeable but calm (Nutzer 02.11.: „subtil ist … überhaupt nicht merkbar“).
 class FilmEffectSettings {
   const FilmEffectSettings({
     this.enabled = true,
     this.grain = 0.22,
-    this.grainSize = 0,
+    this.grainSize = 0.12,
     this.grainSpeed = 1.0,
+    this.grainSoft = 0.5,
+    this.grainClump = 0.25,
+    this.grainChroma = 0.0,
+    this.oldFilm = FasanOldFilm.auto,
+    this.flicker = 0.5,
+    this.dust = 0.35,
+    this.scratches = 0.25,
+    this.vignette = 0.4,
+    this.warmth = 0.3,
     this.glow = 0.5,
     this.halation = 0.35,
     this.bleed = 0.25,
@@ -71,15 +83,26 @@ class FilmEffectSettings {
 
   final bool enabled;
 
-  /// grain: strength. grainSize: 0 → 1 px … 1 → 4 px. grainSpeed: 0 = still … 1 = 24 frames per second.
-  final double grain, grainSize, grainSpeed, glow, halation, bleed, weave;
+  /// grain: strength. grainSize: 0 → 0.6 px … 1 → 4 px. grainSpeed: 0 = still … 1 = 24 grain frames per second.
+  /// grainSoft: hard cells … soft blobs. grainClump: share of coarser clumps. grainChroma: mono film … colour noise.
+  final double grain, grainSize, grainSpeed, grainSoft, grainClump, grainChroma, glow, halation, bleed, weave;
+
+  /// Old-film switch and amounts (0–1) of its parts.
+  final FasanOldFilm oldFilm;
+  final double flicker, dust, scratches, vignette, warmth;
   final FasanFilmLayer layer;
 
   /// Animated colour field behind content, wandering light band, light edge following the device tilt.
   final bool gradient, lightSweep, tilt;
 
-  /// Grain cell in logical pixels.
-  double get grainPx => 1 + grainSize * 3;
+  /// Grain cell in canvas units.
+  double get grainPx => 0.6 + grainSize * 3.4;
+
+  /// Grain frames per second (a new, independent grain image each frame).
+  double get grainFps => grainSpeed * 24;
+
+  /// Old film shown for a style.
+  bool oldFilmFor(FasanStyle style) => oldFilm == FasanOldFilm.on || (oldFilm == FasanOldFilm.auto && style.cinematic);
 
   bool get any => enabled && (grain > 0 || glow > 0 || halation > 0 || bleed > 0 || weave > 0 || gradient || lightSweep || tilt);
 
@@ -88,6 +111,15 @@ class FilmEffectSettings {
     double? grain,
     double? grainSize,
     double? grainSpeed,
+    double? grainSoft,
+    double? grainClump,
+    double? grainChroma,
+    FasanOldFilm? oldFilm,
+    double? flicker,
+    double? dust,
+    double? scratches,
+    double? vignette,
+    double? warmth,
     double? glow,
     double? halation,
     double? bleed,
@@ -102,6 +134,15 @@ class FilmEffectSettings {
         grain: grain ?? this.grain,
         grainSize: grainSize ?? this.grainSize,
         grainSpeed: grainSpeed ?? this.grainSpeed,
+        grainSoft: grainSoft ?? this.grainSoft,
+        grainClump: grainClump ?? this.grainClump,
+        grainChroma: grainChroma ?? this.grainChroma,
+        oldFilm: oldFilm ?? this.oldFilm,
+        flicker: flicker ?? this.flicker,
+        dust: dust ?? this.dust,
+        scratches: scratches ?? this.scratches,
+        vignette: vignette ?? this.vignette,
+        warmth: warmth ?? this.warmth,
         glow: glow ?? this.glow,
         halation: halation ?? this.halation,
         bleed: bleed ?? this.bleed,
@@ -118,6 +159,15 @@ class FilmEffectSettings {
         'grain': grain,
         'grainSize': grainSize,
         'grainSpeed': grainSpeed,
+        'grainSoft': grainSoft,
+        'grainClump': grainClump,
+        'grainChroma': grainChroma,
+        'oldFilm': oldFilm.name,
+        'flicker': flicker,
+        'dust': dust,
+        'scratches': scratches,
+        'vignette': vignette,
+        'warmth': warmth,
         'glow': glow,
         'halation': halation,
         'bleed': bleed,
@@ -140,6 +190,15 @@ class FilmEffectSettings {
       grain: d('grain', z.grain),
       grainSize: d('grainSize', z.grainSize),
       grainSpeed: d('grainSpeed', z.grainSpeed),
+      grainSoft: d('grainSoft', z.grainSoft),
+      grainClump: d('grainClump', z.grainClump),
+      grainChroma: d('grainChroma', z.grainChroma),
+      oldFilm: FasanOldFilm.values.firstWhere((v) => v.name == j['oldFilm'], orElse: () => z.oldFilm),
+      flicker: d('flicker', z.flicker),
+      dust: d('dust', z.dust),
+      scratches: d('scratches', z.scratches),
+      vignette: d('vignette', z.vignette),
+      warmth: d('warmth', z.warmth),
       glow: d('glow', z.glow),
       halation: d('halation', z.halation),
       bleed: d('bleed', z.bleed),

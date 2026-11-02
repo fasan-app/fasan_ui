@@ -87,7 +87,7 @@ class _FasanFilmState extends State<FasanFilm> with SingleTickerProviderStateMix
     final st = FasanEffectState.of(context, widget.effects);
     final fx = st.fx;
     final whole = st.on && fx.layer == FasanFilmLayer.whole && !FasanFilm.coversWhole(context);
-    final animate = whole && st.animate && (fx.grain > 0 || fx.weave > 0);
+    final animate = whole && st.animate && (fx.grain > 0 || fx.weave > 0 || fx.oldFilmFor(st.look.style));
     if (animate && !_ticker.isActive) _ticker.start();
     if (!animate && _ticker.isActive) _ticker.stop();
     if (!whole) return widget.child;
@@ -101,14 +101,14 @@ class _FasanFilmState extends State<FasanFilm> with SingleTickerProviderStateMix
       );
     }
     final grain = _grain;
-    if (grain != null && fx.grain > 0) {
+    if (grain != null && (fx.grain > 0 || fx.oldFilmFor(st.look.style))) {
       w = Stack(fit: StackFit.passthrough, children: [
         w,
         Positioned.fill(
           child: IgnorePointer(
             child: RepaintBoundary(
               child: CustomPaint(
-                painter: FasanGrainPainter(grain, fx, st.look.brightness, MediaQuery.devicePixelRatioOf(context), animate ? _time : null),
+                painter: FasanGrainPainter(grain, fx, luma: 0.5, oldFilm: fx.oldFilmFor(st.look.style), time: animate ? _time : null),
               ),
             ),
           ),
@@ -126,32 +126,52 @@ class _WholeMarker extends InheritedWidget {
   bool updateShouldNotify(_WholeMarker oldWidget) => false;
 }
 
-/// Paints grain with shaders/grain.frag. time null = still grain.
+/// Paints grain and old-film artefacts with shaders/grain.frag. time null = still grain.
 class FasanGrainPainter extends CustomPainter {
-  FasanGrainPainter(this.shader, this.fx, this.brightness, this.dpr, this.time) : super(repaint: time);
+  FasanGrainPainter(this.shader, this.fx, {required this.luma, required this.oldFilm, this.time}) : super(repaint: time);
 
   final ui.FragmentShader shader;
   final FilmEffectSettings fx;
-  final Brightness brightness;
-  final double dpr;
+
+  /// Brightness of what lies below (0–1); film grain is strongest in the mid-tones.
+  final double luma;
+
+  /// Flicker, dust, scratches, vignette, warm cast.
+  final bool oldFilm;
   final ValueListenable<double>? time;
 
   @override
   void paint(Canvas canvas, Size size) {
     final t = time?.value ?? 0;
+    // A new, independent grain image per grain frame (research §2.1). The seed is kept below 241 so hash inputs stay
+    // small (precision); the sequence repeats only after 241 frames (10 s at 24 fps) and is scrambled by 37.
+    final fps = fx.grainFps;
+    final frame = fps <= 0 ? 0 : (t * fps).floor();
+    final seed = ((frame * 37) % 241).toDouble();
+    final slow = ((t * 0.9).floor() * 13 % 241).toDouble();
+    final old = oldFilm ? 1.0 : 0.0;
     shader
       ..setFloat(0, size.width)
       ..setFloat(1, size.height)
-      // grainSpeed scales the frame clock: 1 → 24 grain frames per second, 0 → still.
-      ..setFloat(2, t * fx.grainSpeed)
-      // Grain reads much stronger on light backgrounds (dark specks on paper); half there.
-      ..setFloat(3, fx.grain * (brightness == Brightness.dark ? 1.0 : 0.5))
-      // Cell size. FlutterFragCoord is in local canvas units; logical vs physical pixels on the device: nicht geprüft
+      ..setFloat(2, seed)
+      ..setFloat(3, slow)
+      ..setFloat(4, t % 600)
+      ..setFloat(5, fx.grain)
+      // FlutterFragCoord is in local canvas units; logical vs physical pixels on the device: nicht geprüft
       // (Effekt-Testseite zeigt die Größe zum Vergleich).
-      ..setFloat(4, fx.grainPx);
+      ..setFloat(6, fx.grainPx)
+      ..setFloat(7, fx.grainSoft)
+      ..setFloat(8, fx.grainClump)
+      ..setFloat(9, fx.grainChroma)
+      ..setFloat(10, luma)
+      ..setFloat(11, fx.flicker * old)
+      ..setFloat(12, fx.dust * old)
+      ..setFloat(13, fx.scratches * old)
+      ..setFloat(14, fx.vignette * old)
+      ..setFloat(15, fx.warmth * old);
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
 
   @override
-  bool shouldRepaint(FasanGrainPainter old) => old.fx != fx || old.brightness != brightness || old.dpr != dpr || old.time != time;
+  bool shouldRepaint(FasanGrainPainter old) => old.fx != fx || old.luma != luma || old.oldFilm != oldFilm || old.time != time;
 }
