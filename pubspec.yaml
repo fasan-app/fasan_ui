@@ -15,8 +15,6 @@ dependencies:
   animations: ^3.0.0
   # BSD-2-Clause, Vibrator service on Android (needs the VIBRATE permission in the app manifest; pub.dev/packages/vibration)
   vibration: ^3.1.3
-  # MIT, short own tones for taps (BytesSource in MediaPlayer mode; pub.dev/packages/audioplayers)
-  audioplayers: ^6.5.0
 
 dev_dependencies:
   flutter_test:

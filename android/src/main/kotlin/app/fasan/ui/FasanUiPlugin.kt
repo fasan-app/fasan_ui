@@ -28,6 +28,8 @@ class FasanUiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChann
     private var thermalListener: Any? = null
     private var tiltEvents: EventChannel? = null
     private var tilt: FasanTilt? = null
+    private val tone = FasanTone()
+    private var toneMethods: MethodChannel? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -35,12 +37,23 @@ class FasanUiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChann
         methods.setMethodCallHandler(this)
         events = EventChannel(binding.binaryMessenger, "app.fasan.ui/power/events")
         events.setStreamHandler(this)
+        toneMethods = MethodChannel(binding.binaryMessenger, "app.fasan.ui/tone").also { ch ->
+            ch.setMethodCallHandler { call, res ->
+                when (call.method) {
+                    "load" -> res.success(tone.load(call.argument<String>("name")!!, call.argument<ByteArray>("pcm")!!, call.argument<Int>("rate")!!))
+                    "play" -> res.success(tone.play(call.argument<String>("name")!!, (call.argument<Double>("volume") ?: 0.6).toFloat()))
+                    else -> res.notImplemented()
+                }
+            }
+        }
         tilt = FasanTilt(context)
         tiltEvents = EventChannel(binding.binaryMessenger, "app.fasan.ui/tilt").also { it.setStreamHandler(tilt) }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         methods.setMethodCallHandler(null)
+        toneMethods?.setMethodCallHandler(null)
+        tone.release()
         events.setStreamHandler(null)
         tiltEvents?.setStreamHandler(null)
         tilt?.onCancel(null)
