@@ -69,15 +69,21 @@ class _FasanDepthState extends State<FasanDepth> {
     final l = st.look;
     final r = BorderRadius.circular(widget.radius ?? l.radius);
     final dark = l.brightness == Brightness.dark;
-    if (!st.on) {
-      _hold(false);
-      return DecoratedBox(decoration: BoxDecoration(borderRadius: r, border: Border.all(color: l.hairline)), child: widget.child);
-    }
-    _hold(st.tilt);
     final k = widget.pressed ? 0.45 : 1.0;
-    if (!st.tilt) {
-      return DecoratedBox(decoration: BoxDecoration(borderRadius: r, boxShadow: FasanShadows.of(widget.level, dark: dark, tint: widget.tint, k: k)), child: widget.child);
+    // Shadows are always on (Nutzer 03.11.): the effect switch and low battery only decide the tilt, not the shadow.
+    // Effects off keep the hairline as well.
+    if (!st.on || !st.tilt) {
+      _hold(false);
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: r,
+          border: st.on ? null : Border.all(color: l.hairline),
+          boxShadow: FasanShadows.of(widget.level, dark: dark, tint: widget.tint, k: k),
+        ),
+        child: widget.child,
+      );
     }
+    _hold(true);
     return AnimatedBuilder(
       animation: FasanTilt.instance,
       child: widget.child,

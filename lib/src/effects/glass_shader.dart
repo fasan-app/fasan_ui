@@ -46,7 +46,11 @@ abstract final class FasanGlassShader {
         }
       }();
 
-  static bool get usable => tier.value == FasanGlassTier.refract && program != null && ui.ImageFilter.isShaderFilterSupported;
+  /// Off since 03.11.: on the S23 ImageFilter.shader paints the glass black, so no screen uses it. Glass stays at the
+  /// blur stage (S2) until the background is read another way (RepaintBoundary.toImageSync, docs/STAND in Split).
+  static const bool refractionEnabled = false;
+
+  static bool get usable => refractionEnabled && tier.value == FasanGlassTier.refract && program != null && ui.ImageFilter.isShaderFilterSupported;
 
   /// Sets the floats of glass.frag. Index 0/1 (uSize) and the sampler are set by the engine; ours start at 2
   /// (docs/recherche/2026-11-02-echtes-glas-flutter.md §1, SDK painting.dart ImageFilter.shader).
@@ -85,6 +89,12 @@ class _FasanGlassProbeState extends State<FasanGlassProbe> {
   void initState() {
     super.initState();
     if (_done) return;
+    if (!FasanGlassShader.refractionEnabled) {
+      FasanGlassShader.reason = 'Brechung aus (ImageFilter.shader schwarz auf dem S23)';
+      FasanGlassShader.tier.value = FasanGlassTier.blur;
+      _done = true;
+      return;
+    }
     if (!ui.ImageFilter.isShaderFilterSupported) {
       FasanGlassShader.reason = 'ImageFilter.shader nicht unterstützt (kein Impeller)';
       FasanGlassShader.tier.value = FasanGlassTier.blur;
