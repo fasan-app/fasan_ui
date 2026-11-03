@@ -31,6 +31,12 @@ abstract final class FasanGlassShader {
   /// Why the probe failed (effect test page), or null.
   static String? reason;
 
+  /// Probe pixels as text („oben rgb, unten rgb, Rückgabe“) for the log: tells what the device really does.
+  static String? probePixels;
+
+  /// True when the probe saw the picture upside down: refraction is still used, the shader flips the lookup.
+  static bool flipY = false;
+
   static Future<void> ensureLoaded() => _loading ??= () async {
         try {
           program = await ui.FragmentProgram.fromAsset('packages/fasan_ui/shaders/glass.frag');
@@ -57,7 +63,8 @@ abstract final class FasanGlassShader {
       ..setFloat(9, tintAlpha)
       ..setFloat(10, tint.r)
       ..setFloat(11, tint.g)
-      ..setFloat(12, tint.b);
+      ..setFloat(12, tint.b)
+      ..setFloat(13, flipY ? 1 : 0);
   }
 }
 
@@ -108,9 +115,23 @@ class _FasanGlassProbeState extends State<FasanGlassProbe> {
       final data = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
       img.dispose();
       if (data == null) throw StateError('keine Pixel');
-      final ok = _upright(data, img.width, img.height);
-      FasanGlassShader.reason = ok ? null : 'Testbild falsch (gedreht oder schwarz)';
-      FasanGlassShader.tier.value = ok ? FasanGlassTier.refract : FasanGlassTier.blur;
+      final (top, bottom) = _sample(data, img.width, img.height);
+      FasanGlassShader.probePixels = 'oben rgb${top.$1},${top.$2},${top.$3} unten rgb${bottom.$1},${bottom.$2},${bottom.$3}';
+      bool isRed((int, int, int) c) => c.$1 > 140 && c.$1 > c.$3 + 60;
+      bool isBlue((int, int, int) c) => c.$3 > 140 && c.$3 > c.$1 + 60;
+      if (isRed(top) && isBlue(bottom)) {
+        FasanGlassShader.flipY = false;
+        FasanGlassShader.reason = null;
+        FasanGlassShader.tier.value = FasanGlassTier.refract;
+      } else if (isBlue(top) && isRed(bottom)) {
+        // upside down but otherwise fine: the shader flips the lookup (uFlip), no need to give up refraction
+        FasanGlassShader.flipY = true;
+        FasanGlassShader.reason = 'Hintergrund kopfüber, wird im Shader gedreht';
+        FasanGlassShader.tier.value = FasanGlassTier.refract;
+      } else {
+        FasanGlassShader.reason = 'Testbild falsch (${FasanGlassShader.probePixels})';
+        FasanGlassShader.tier.value = FasanGlassTier.blur;
+      }
     } catch (e) {
       FasanGlassShader.reason = 'Selbsttest: $e';
       FasanGlassShader.tier.value = FasanGlassTier.blur;
@@ -118,15 +139,14 @@ class _FasanGlassProbeState extends State<FasanGlassProbe> {
     if (mounted) setState(() {});
   }
 
-  /// Top centre must be red, bottom centre blue, both not dark.
-  static bool _upright(ByteData d, int w, int h) {
+  /// Colours at top centre and bottom centre of the probe picture.
+  static ((int, int, int), (int, int, int)) _sample(ByteData d, int w, int h) {
     (int, int, int) px(int x, int y) {
       final i = (y * w + x) * 4;
       return (d.getUint8(i), d.getUint8(i + 1), d.getUint8(i + 2));
     }
 
-    final top = px(w ~/ 2, h ~/ 6), bottom = px(w ~/ 2, h - 1 - h ~/ 6);
-    return top.$1 > 140 && top.$1 > top.$3 + 60 && bottom.$3 > 140 && bottom.$3 > bottom.$1 + 60;
+    return (px(w ~/ 2, h ~/ 6), px(w ~/ 2, h - 1 - h ~/ 6));
   }
 
   @override

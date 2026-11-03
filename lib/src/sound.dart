@@ -5,6 +5,7 @@
 // (MIT; pub.dev/packages/audioplayers) als Bytes. Android-Nutzungsart „assistanceSonification“ = Oberflächentöne (AudioAttributes
 // USAGE_ASSISTANCE_SONIFICATION, developer.android.com): der Ton läuft auf dem Systemkanal, folgt Lautstärke und Lautlos-Modus
 // des Handys (nicht auf One UI geprüft) und nimmt keinen Audio-Fokus, die Musik des Nutzers läuft weiter.
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -60,46 +61,69 @@ abstract final class FasanSound {
     FasanFeel.warn: fasanTone(partials: const [(330, 1), (495, 0.5)], ms: 160, decayMs: 55, level: 0.75),
   };
 
-  static final List<AudioPlayer> _pool = [];
-  static int _next = 0;
-  static bool _broken = false;
+  // One prepared player per tone: the bytes are set once, a tap only restarts it (no decoding on the tap).
+  static final Map<FasanFeel, AudioPlayer> _players = {};
+
+  /// What the log shows (Protokoll „darstellung.ton“): why there was no sound, how often it played.
+  static String? lastError;
+  static int plays = 0, failures = 0;
+  static String mode = 'mediaPlayer';
 
   /// Tests: skip the audio plugin and use the system click.
   @visibleForTesting
   static bool disabled = false;
 
   /// Quiet by design: UI tones are part of the touch, not the music.
-  static const double volume = 0.35;
+  static const double volume = 0.4;
 
+  // 0.1.23 used PlayerMode.lowLatency (SoundPool) and BytesSource together. The plugin source says it cannot:
+  // „Bytes sources are not supported on LOW_LATENCY mode yet.“ (audioplayers_android 5.3.0, BytesSource.kt). The error was
+  // swallowed and the silent system click took over – that was the missing sound on the S23. Now: the normal MediaPlayer mode,
+  // which supports bytes (Android ≥ 6). Usage „media“ follows the media volume, which people keep above zero; the earlier
+  // „assistanceSonification“ follows the system-sound slider, which is often at zero (nicht auf One UI geprüft).
   static final _context = AudioContext(
     android: const AudioContextAndroid(
       isSpeakerphoneOn: false,
       stayAwake: false,
       contentType: AndroidContentType.sonification,
-      usageType: AndroidUsageType.assistanceSonification,
+      usageType: AndroidUsageType.media,
       audioFocus: AndroidAudioFocus.none,
     ),
     iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
   );
 
-  static Future<void> play(FasanFeel feel) async {
-    if (_broken || disabled) return _fallback();
-    try {
-      if (_pool.isEmpty) {
-        for (var i = 0; i < 3; i++) {
-          final p = AudioPlayer();
-          await p.setPlayerMode(PlayerMode.lowLatency);
-          await p.setReleaseMode(ReleaseMode.stop);
-          await p.setAudioContext(_context);
-          _pool.add(p);
-        }
-      }
-      final p = _pool[_next++ % _pool.length];
-      // never wait longer than a moment for the platform: a tone that arrives late is worse than none
-      await p.play(BytesSource(_tones[feel]!, mimeType: 'audio/wav'), volume: volume).timeout(const Duration(seconds: 2));
-    } catch (_) {
-      _broken = true; // no plugin: use the system click from now on
+  /// Plays a tone. Returns null when it went to the plugin, else the reason it did not (shown by the test button).
+  static Future<String?> play(FasanFeel feel) async {
+    if (disabled) {
       await _fallback();
+      return 'aus (Test)';
+    }
+    try {
+      var p = _players[feel];
+      if (p == null) {
+        p = AudioPlayer();
+        await p.setPlayerMode(PlayerMode.mediaPlayer);
+        await p.setReleaseMode(ReleaseMode.stop);
+        await p.setAudioContext(_context);
+        await p.setVolume(volume);
+        await p.setSource(BytesSource(_tones[feel]!, mimeType: 'audio/wav'));
+        _players[feel] = p;
+      }
+      // a tone that arrives late is worse than none: do not wait longer than a moment for the platform
+      await p.seek(Duration.zero).timeout(const Duration(seconds: 2));
+      await p.resume().timeout(const Duration(seconds: 2));
+      plays++;
+      failures = 0;
+      lastError = null;
+      return null;
+    } catch (e) {
+      lastError = '$e';
+      failures++;
+      final p = _players.remove(feel);
+      if (p != null) unawaited(p.dispose());
+      // after three failures in a row the plugin is not there (tests, other platforms): system click
+      if (failures >= 3) await _fallback();
+      return lastError;
     }
   }
 

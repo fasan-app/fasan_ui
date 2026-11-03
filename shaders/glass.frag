@@ -19,6 +19,7 @@ uniform vec2 uLight;       // 6,7 light direction (normalised, screen space, y d
 uniform float uSpec;       // 8  specular strength
 uniform float uTintA;      // 9  tint opacity
 uniform vec3 uTint;        // 10..12 tint colour (straight, not premultiplied)
+uniform float uFlip;       // 13 1 = this device hands the backdrop upside down (found by the start-up probe)
 uniform sampler2D uBackdrop;
 
 out vec4 fragColor;
@@ -43,6 +44,7 @@ void main() {
   vec3 R = refract(vec3(0.0, 0.0, -1.0), N, 1.0 / uIor);
   vec2 off = R.xy / max(-R.z, 1e-3) * uThickness;
   vec2 uv = clamp((frag + off) / uSize, 0.5 / uSize, 1.0 - 0.5 / uSize);
+  if (uFlip > 0.5) uv.y = 1.0 - uv.y;
   vec4 c = texture(uBackdrop, uv);
   // light on the rim: bright on the light side, a weaker counter-light opposite (light passing through)
   float rim = pow(1.0 - h, 2.0);

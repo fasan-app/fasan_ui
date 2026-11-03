@@ -135,12 +135,12 @@ class FasanHaptics {
   /// For the settings page: play one way regardless of the switches.
   static Future<void> probeSystem(FasanFeel f) => _system(f);
   static Future<void> probeDirect(FasanFeel f) => _direct(f);
-  static Future<void> probeSound() => FasanSound.play(FasanFeel.tap);
+  static Future<String?> probeSound() => FasanSound.play(FasanFeel.tap);
 
   Future<void> tap() => _go(FasanFeel.tap, click: true);
-  Future<void> confirm() => _go(FasanFeel.confirm);
+  Future<void> confirm() => _go(FasanFeel.confirm, click: true);
   Future<void> snap() => _go(FasanFeel.snap, click: true);
-  Future<void> warn() => _go(FasanFeel.warn);
+  Future<void> warn() => _go(FasanFeel.warn, click: true);
 
   Future<void> _go(FasanFeel f, {bool click = false}) async {
     if (click && sound) unawaited(FasanSound.play(f));

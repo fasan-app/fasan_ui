@@ -121,6 +121,8 @@ class FasanStrings {
   String get probeSystem => de ? 'System-Haptik' : 'System haptics';
   String get probeDirect => de ? 'Vibrator' : 'Vibrator';
   String get probeSound => de ? 'Klick-Ton' : 'Click sound';
+  String get soundPlayed => de ? 'Ton wurde an Android übergeben. Hörst du ihn nicht: Medienlautstärke prüfen.' : 'Tone handed to Android. If you hear nothing, check the media volume.';
+  String get soundFailed => de ? 'Ton fehlgeschlagen' : 'Tone failed';
   String get simple => de ? 'Große Bedienung' : 'Large controls';
   String get preview => de ? 'Vorschau' : 'Preview';
   String get compare => de ? 'Alle Stile' : 'All styles';
@@ -290,7 +292,15 @@ class FasanAppearancePage extends StatelessWidget {
               Text(t.probeTitle, style: Theme.of(context).textTheme.labelLarge),
               OutlinedButton(onPressed: () => FasanHaptics.probeSystem(FasanFeel.snap), child: Text(t.probeSystem)),
               OutlinedButton(onPressed: () => FasanHaptics.probeDirect(FasanFeel.snap), child: Text(t.probeDirect)),
-              OutlinedButton(onPressed: FasanHaptics.probeSound, child: Text(t.probeSound)),
+              OutlinedButton(
+                onPressed: () async {
+                  final m = ScaffoldMessenger.maybeOf(context);
+                  final err = await FasanHaptics.probeSound();
+                  // the real reason is shown, not guessed (0.1.23 hid it and stayed silent)
+                  m?.showSnackBar(SnackBar(content: Text(err == null ? t.soundPlayed : '${t.soundFailed}: $err'), duration: const Duration(seconds: 6)));
+                },
+                child: Text(t.probeSound),
+              ),
             ]),
           ),
           FasanSwitchTile(title: Text(t.simple), value: s.simpleProfile, onChanged: (v) => c.update((o) => o.copyWith(simpleProfile: v))),

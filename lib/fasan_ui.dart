@@ -14,4 +14,5 @@ export 'src/theme.dart';
 export 'src/tilt.dart';
 export 'src/tokens.dart';
 export 'src/transitions.dart';
+export 'src/widgets/depth.dart';
 export 'src/widgets/widgets.dart';

@@ -12,6 +12,7 @@ import '../tokens.dart';
 import '../tilt.dart';
 import '../effects/backdrop.dart';
 import '../effects/glass_shader.dart';
+import 'depth.dart';
 
 /// Glass panel for the control layer (bars, sheets). Never for content (Apple HIG Liquid Glass: separate layer).
 ///
@@ -120,10 +121,7 @@ class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateM
         final tilt = st.tilt ? FasanTilt.instance.value : Offset.zero;
         return DecoratedBox(
           // Two shadows: tight contact and wide lift; deeper in the dark (Session 219: shadow adapts to the ground).
-          decoration: BoxDecoration(borderRadius: r, boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.08 * k), blurRadius: 2, offset: const Offset(0, 1)),
-            BoxShadow(color: Colors.black.withValues(alpha: (dark ? 0.35 : 0.10) * k), blurRadius: 30, offset: const Offset(0, 10)),
-          ]),
+          decoration: BoxDecoration(borderRadius: r, boxShadow: FasanShadows.of(3, dark: dark, tilt: tilt, k: k)),
           child: ClipRRect(
             borderRadius: r,
             child: BackdropFilter(
@@ -133,7 +131,7 @@ class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateM
                 tilt,
                 k,
                 CustomPaint(
-                  foregroundPainter: FasanLightEdgePainter(r, tilt, (dark ? 0.32 : 0.55) * k + 0.3 * widget.highlight, dark),
+                  foregroundPainter: FasanLightEdgePainter(r, tilt, (dark ? 0.62 : 0.95) * k + 0.3 * widget.highlight, dark),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       // thinner tint over refracting glass, so the bent background shows through
@@ -180,14 +178,24 @@ class FasanLightEdgePainter extends CustomPainter {
     );
     canvas.drawRRect(rr, Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
+      ..strokeWidth = 1.8
       ..shader = sweep.createShader(rect));
+    // Inner glow: light that has travelled through the glass edge and lights it from within (gives thickness).
+    canvas.save();
+    canvas.clipRRect(rr);
+    canvas.drawRRect(rr.deflate(1), Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)
+      ..shader = sweep.createShader(rect)
+      ..color = Colors.white);
+    canvas.restore();
     // Inner sheen: the top part of the glass catches a little more light.
     final sheen = LinearGradient(
       begin: Alignment(math.cos(angle), math.sin(angle)),
       end: Alignment(-math.cos(angle), -math.sin(angle)),
-      colors: [w(dark ? 0.16 : 0.28), w(0)],
-      stops: const [0, 0.6],
+      colors: [w(dark ? 0.26 : 0.45), w(0)],
+      stops: const [0, 0.65],
     );
     canvas.drawRRect(rr, Paint()..shader = sheen.createShader(rect));
     // Glare: a soft white patch where the light meets the glass (top left at rest, turns with the tilt) and a faint caustic
@@ -386,6 +394,9 @@ class FasanButton extends StatelessWidget {
     if ((glow ?? kind == FasanButtonKind.primary) && !disabled && l.glowScale > 0) {
       body = FasanGlow(radius: radius, strength: 0.8 * l.glowScale, child: body);
     }
+    if (!disabled && kind != FasanButtonKind.quiet) {
+      body = FasanDepth(radius: radius, level: kind == FasanButtonKind.primary ? 2 : 1, tint: kind == FasanButtonKind.primary ? l.accent : null, child: body);
+    }
     return Opacity(
       opacity: disabled ? 0.45 : 1,
       child: FasanPressable(onTap: onPressed, semanticLabel: label, lightRadius: lit ? radius : null, child: body),
@@ -547,12 +558,15 @@ class FasanAvatarStack extends StatelessWidget {
 
 /// Selectable person chip: avatar + name; selected = filled with the person's colour.
 class FasanPersonChip extends StatelessWidget {
-  const FasanPersonChip({super.key, required this.name, required this.index, required this.selected, this.onTap});
+  const FasanPersonChip({super.key, required this.name, required this.index, required this.selected, this.onTap, this.onLongPress});
 
   final String name;
   final int index;
   final bool selected;
   final VoidCallback? onTap;
+
+  /// Long press: context menu of the app (rename, only this person …).
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +577,7 @@ class FasanPersonChip extends StatelessWidget {
       selected: selected,
       child: FasanPressable(
         onTap: onTap,
+        onLongPress: onLongPress,
         semanticLabel: name,
         child: AnimatedContainer(
           duration: m.short,
