@@ -4,6 +4,7 @@
 // Where the plugin is missing (tests, web, other platforms) the state stays "unknown / not saving".
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 
 class FasanPowerState {
@@ -58,7 +59,10 @@ class FasanPower {
   }
 
   /// Changes of battery, power saving and thermal status. Empty stream where unsupported.
+  /// The browser has no platform side for this channel: listening there reports a MissingPluginException (seen in the
+  /// Fasan Split web build 03.11.), so the web gets the empty stream right away.
   static Stream<FasanPowerState> changes() {
+    if (kIsWeb) return const Stream.empty();
     return _events.receiveBroadcastStream().map(FasanPowerState.fromMap).handleError((Object _) {});
   }
 

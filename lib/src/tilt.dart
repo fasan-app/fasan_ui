@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -62,7 +63,8 @@ class FasanTilt extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _update() {
-    final want = _users > 0 && _foreground && source != 'none';
+    // No sensor channel in the browser (like power.dart): never listen there.
+    final want = !kIsWeb && _users > 0 && _foreground && source != 'none';
     if (want && _sub == null) {
       _sub = _events.receiveBroadcastStream().listen(_onEvent, onError: (Object _) {
         source = 'none';
