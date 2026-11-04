@@ -347,3 +347,11 @@ Alle Standardwerte sind eigene Vorschläge, [Nicht geprüft], und müssen auf de
 - WCAG 2.3.1 (Blitzschwelle) vor Release lesen.
 - Blendmodus-Variante ohne Backdrop (Overlay/SoftLight) in Flutter.
 - Foi et al. 2008 Poisson-Gauß-Volltext.
+
+## Nachgelesen WCAG 2.2 (04.11.)
+
+Quelle: w3.org/WAI/WCAG22/Understanding/ (three-flashes-or-below-threshold, target-size-minimum, pause-stop-hide), per curl gelesen. **[geprüft]**
+- **SC 2.3.1 (Stufe A):** nichts darf mehr als dreimal pro Sekunde blitzen, oder der Blitz liegt unter der Grenze für „general flash“ und „red flash“. Allgemeiner Blitz: Helligkeitsänderung ≥ 20 cd/m², wenn das dunklere Bild unter 160 cd/m² liegt (ITU-R BT.1702); bei HDR mit dunklerem Zustand ≥ 160 cd/m² gilt Michelson-Kontrast ≥ 1/17. Verfahren G176: Blitzfläche klein halten. Für Korn heißt das: Helligkeitsflackern der ganzen Fläche pro Sekunde mit ≤ 3 Wechseln oder deutlich unter der Schwelle; Korn mit 24 Hz nur mit kleiner Amplitude und Streuung statt Flächenblitz. Die Prüfung der echten Werte am Gerät bleibt [nicht geprüft].
+- **SC 2.5.8 (Stufe AA):** Zielgröße mindestens 24 × 24 CSS-Pixel; Ausnahmen: Abstand (24-px-Kreis um jedes zu kleine Ziel schneidet kein anderes), Alternative, Zeilenelement, Browser-Steuerung, wesentlich. Die strengere SC 2.5.5 (Enhanced) verlangt 44 × 44. Fasan nimmt 48 dp (Profil Einfach 60 dp), liegt also darüber.
+- **SC 2.2.2 (Stufe A):** Bewegung, Blinken, Scrollen, die automatisch startet, länger als 5 Sekunden dauert und neben anderem Inhalt läuft, braucht eine Möglichkeit zum Anhalten, Stoppen oder Ausblenden (außer wesentlich); auch bei sich selbst aktualisierenden Inhalten. Fasans Bewegung folgt „Animationen entfernen“ und der App-Einstellung (siehe CLAUDE.md Split).
+
