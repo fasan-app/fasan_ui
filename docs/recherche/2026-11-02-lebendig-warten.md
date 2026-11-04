@@ -103,10 +103,21 @@ Kennzeichen: **[geprüft]** = Seite gelesen, Aussage dort belegt. **[Sekundär]*
 
 ## Offene Punkte für die nächste Runde
 
-1. WWDC18 803 Transkript/Video lesen (Dämpfung, Antwort, Projektion). Primärquelle fehlt.
+1. WWDC18 803 Transkript gelesen 04.11. (siehe „Nachgelesen WWDC18 803“ unten); die Zahlenwerte aus der Sekundärquelle bleiben ungeprüft.
 2. Offizielle M3-/Compose-Quelle für Federwerte lesen, nicht den Port.
 3. NN/g „Skeleton Screens“ und Aufmerksamkeit/Banner-Blindheit (Benway & Lane, NN/g) lesen.
 4. Harrison et al. 2010 Paper (Zahlen zu Pulsen/Wellen im Balken).
 5. Buell & Norton 2011 Volltext (Wartezeiten, Grenzen der Labor Illusion).
 6. Android-Haptik-Doku (developer.android.com) und Flutter `HapticFeedback` lesen, bevor Muster zugeordnet werden.
 7. Flutter `SpringDescription` und `AnimationController` mit Reduce-Motion in api.flutter.dev lesen.
+
+## Nachgelesen WWDC18 803 (04.11.)
+
+Quelle: Transkript auf https://developer.apple.com/videos/play/wwdc2018/803/ („Designing Fluid Interfaces“), per curl gelesen.
+**[geprüft]** im Transkript:
+- Antwort: Menschen sind sehr empfindlich gegen Verzögerung; schon etwas Lag macht es „losgelöst“. Bilder pro Sekunde allein genügen nicht („60 fps und fühlt sich trotzdem falsch an“).
+- Dämpfung = Überschwingen: 100 % ohne Überschwingen, 0 % schwingt endlos. Antwort = wie schnell die Feder reagiert. Masse, Steifigkeit, Dämpfung bleiben im Hintergrund; Entwürfe nutzen nur diese zwei Regler.
+- Unterbrechen und Umlenken jederzeit zulassen (Beispiel: App starten und gleich zurückwerfen).
+- Projektion: aus Geschwindigkeit und Abbremsrate die „gedachte“ Endposition berechnen und dorthin umlenken, statt zum nächsten Rand zu springen.
+- 30 fps strobt bei schneller Bewegung; 60 fps erlaubt schnellere Bewegung ohne Strobing; Bewegungsunschärfe hilft.
+**[nicht geprüft]**: Die Zahlenwerte (Verschieben Dämpfung 1,0 / Antwort 0,4 s usw.) stehen im Transkript **nicht** (keine Dezimalzahl dort). Sie bleiben [Sekundär]; Videobild/Folien nicht gesehen. Flutter-`SpringDescription.withDampingRatio` und Android-Entsprechungen weiter [nicht geprüft].
