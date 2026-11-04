@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/physics.dart';
 
 import '../scope.dart';
@@ -124,8 +125,14 @@ class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateM
           decoration: BoxDecoration(borderRadius: r, boxShadow: st.shadows ? FasanShadows.of(3, dark: dark, tilt: tilt, k: k) : const []),
           child: ClipRRect(
             borderRadius: r,
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: l.glassBlur * k, sigmaY: l.glassBlur * k),
+            // Without the shader (S23: ImageFilter.shader drew black, tier „blur“) the glass still bends light: a thick
+            // lens magnifies what lies under it a little and shifts it with the tilt, so content scrolling underneath
+            // moves differently from the page (Nutzer 04.11.). Same technique as Flutter's RawMagnifier
+            // (widgets/magnifier.dart: BackdropFilterLayer with ImageFilter.matrix), composed with the blur.
+            child: FasanLensBackdrop(
+              sigma: l.glassBlur * k,
+              scale: _shader == null && st.animate ? 1 + 0.045 * k : 1,
+              shift: _shader == null && st.animate ? tilt * 5 : Offset.zero,
               child: _refraction(
                 r,
                 tilt,
@@ -150,6 +157,73 @@ class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateM
       },
       child: padded,
     );
+  }
+}
+
+/// Backdrop of glass: blur, and optionally a lens (magnify by [scale] around the centre, move by [shift]). Computed
+/// in paint like RawMagnifier, because the matrix filter works in the layer's coordinates (the centre of this box).
+class FasanLensBackdrop extends SingleChildRenderObjectWidget {
+  const FasanLensBackdrop({super.key, required this.sigma, this.scale = 1, this.shift = Offset.zero, super.child});
+
+  final double sigma, scale;
+  final Offset shift;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => RenderFasanLens(sigma, scale, shift);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderFasanLens renderObject) => renderObject
+    ..sigma = sigma
+    ..scale = scale
+    ..shift = shift;
+}
+
+class RenderFasanLens extends RenderProxyBox {
+  RenderFasanLens(this._sigma, this._scale, this._shift);
+
+  double _sigma, _scale;
+  Offset _shift;
+  set sigma(double v) {
+    if (v == _sigma) return;
+    _sigma = v;
+    markNeedsPaint();
+  }
+
+  set scale(double v) {
+    if (v == _scale) return;
+    _scale = v;
+    markNeedsPaint();
+  }
+
+  set shift(Offset v) {
+    if (v == _shift) return;
+    _shift = v;
+    markNeedsPaint();
+  }
+
+  @override
+  bool get alwaysNeedsCompositing => child != null;
+
+  @override
+  BackdropFilterLayer? get layer => super.layer as BackdropFilterLayer?;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final blur = ui.ImageFilter.blur(sigmaX: _sigma, sigmaY: _sigma);
+    var filter = blur;
+    if (_scale != 1 || _shift != Offset.zero) {
+      final c = Alignment.center.alongSize(size) + offset;
+      final m = Matrix4.identity()
+        ..translateByDouble(c.dx + _shift.dx - _scale * c.dx, c.dy + _shift.dy - _scale * c.dy, 0, 1)
+        ..scaleByDouble(_scale, _scale, 1, 1);
+      filter = ui.ImageFilter.compose(outer: blur, inner: ui.ImageFilter.matrix(m.storage, filterQuality: FilterQuality.medium));
+    }
+    if (layer == null) {
+      layer = BackdropFilterLayer(filter: filter);
+    } else {
+      layer!.filter = filter;
+    }
+    context.pushLayer(layer!, super.paint, offset);
   }
 }
 
