@@ -239,6 +239,8 @@ class FasanAppearancePage extends StatelessWidget {
             label: t.layerName,
             onChanged: (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(layer: v))),
           ),
+          // own switch, works with effects off too (Nutzer 04.11.)
+          FasanSwitchTile(title: Text(t.de ? 'Schatten' : 'Shadows'), value: s.effects.shadows, onChanged: (v) => c.update((o) => o.copyWith(effects: o.effects.copyWith(shadows: v)))),
           for (final (name, value, set) in [
             (t.gradient, s.effects.gradient, (bool v) => s.effects.copyWith(gradient: v)),
             (t.lightSweep, s.effects.lightSweep, (bool v) => s.effects.copyWith(lightSweep: v)),

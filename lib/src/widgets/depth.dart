@@ -72,6 +72,10 @@ class _FasanDepthState extends State<FasanDepth> {
     final k = widget.pressed ? 0.45 : 1.0;
     // Shadows are always on (Nutzer 03.11.): the effect switch and low battery only decide the tilt, not the shadow.
     // Effects off keep the hairline as well.
+    if (!st.shadows) {
+      _hold(false);
+      return DecoratedBox(decoration: BoxDecoration(borderRadius: r, border: Border.all(color: l.hairline)), child: widget.child);
+    }
     if (!st.on || !st.tilt) {
       _hold(false);
       return DecoratedBox(

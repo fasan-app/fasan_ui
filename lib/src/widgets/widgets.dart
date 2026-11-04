@@ -121,7 +121,7 @@ class _FasanGlassState extends State<FasanGlass> with SingleTickerProviderStateM
         final tilt = st.tilt ? FasanTilt.instance.value : Offset.zero;
         return DecoratedBox(
           // Two shadows: tight contact and wide lift; deeper in the dark (Session 219: shadow adapts to the ground).
-          decoration: BoxDecoration(borderRadius: r, boxShadow: FasanShadows.of(3, dark: dark, tilt: tilt, k: k)),
+          decoration: BoxDecoration(borderRadius: r, boxShadow: st.shadows ? FasanShadows.of(3, dark: dark, tilt: tilt, k: k) : const []),
           child: ClipRRect(
             borderRadius: r,
             child: BackdropFilter(

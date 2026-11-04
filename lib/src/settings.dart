@@ -80,6 +80,7 @@ class FilmEffectSettings {
     this.gradient = true,
     this.lightSweep = true,
     this.tilt = true,
+    this.shadows = true,
   });
 
   final bool enabled;
@@ -98,6 +99,10 @@ class FilmEffectSettings {
 
   /// Animated colour field behind content, wandering light band, light edge following the device tilt.
   final bool gradient, lightSweep, tilt;
+
+  /// Layered shadows under cards, buttons and glass (Nutzer 04.11.: switchable). Independent of [enabled]: off leaves a
+  /// hairline edge (FasanDepth).
+  final bool shadows;
 
   /// Grain cell in canvas units.
   double get grainPx => 0.6 + grainSize * 3.4;
@@ -133,6 +138,7 @@ class FilmEffectSettings {
     bool? gradient,
     bool? lightSweep,
     bool? tilt,
+    bool? shadows,
   }) =>
       FilmEffectSettings(
         enabled: enabled ?? this.enabled,
@@ -157,6 +163,7 @@ class FilmEffectSettings {
         gradient: gradient ?? this.gradient,
         lightSweep: lightSweep ?? this.lightSweep,
         tilt: tilt ?? this.tilt,
+        shadows: shadows ?? this.shadows,
       );
 
   Map<String, Object> toJson() => {
@@ -183,6 +190,7 @@ class FilmEffectSettings {
         'gradient': gradient,
         'lightSweep': lightSweep,
         'tilt': tilt,
+        'shadows': shadows,
       };
 
   static FilmEffectSettings fromJson(Map<String, Object?> j) {
@@ -217,6 +225,7 @@ class FilmEffectSettings {
       gradient: b('gradient', z.gradient),
       lightSweep: b('lightSweep', z.lightSweep),
       tilt: b('tilt', z.tilt),
+      shadows: b('shadows', z.shadows),
     );
   }
 }

@@ -47,6 +47,9 @@ class FasanEffectState {
 
   /// Glass light follows the tilt.
   bool get tilt => animate && fx.tilt;
+
+  /// Shadows drawn (own switch, also with effects off).
+  bool get shadows => fx.shadows;
 }
 
 /// Ground behind the content. Put it behind the Navigator (MaterialApp.builder) with transparent scaffolds, or locally
