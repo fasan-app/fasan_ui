@@ -64,7 +64,9 @@ class FasanOpenContainer extends StatelessWidget {
     final m = FasanMotion.of(context);
     return OpenContainer<Object?>(
       closedColor: l.surface,
-      openColor: l.background,
+      // transparent like every page: the ground (FasanBackdrop) stays visible behind the opened page (Fasan Split, Bildschirmvergleich 06.11.:
+      // an opaque colour here made bills opened from a tile flat while all other screens had the ground)
+      openColor: Colors.transparent,
       middleColor: l.surface,
       closedElevation: 0,
       openElevation: 0,
