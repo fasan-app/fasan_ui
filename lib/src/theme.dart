@@ -1,0 +1,397 @@
+// fasan_ui – colours, typography and ThemeData per style. MPL-2.0
+//
+// Contrast: text on surfaces and onAccent on accent are checked ≥ 4.5:1 (WCAG 2.x AA) in test/contrast_test.dart.
+
+import 'package:flutter/material.dart';
+
+import 'settings.dart';
+import 'tokens.dart';
+import 'transitions.dart';
+
+/// Style-specific values that Material's ColorScheme has no slot for. Read with `FasanLook.of(context)`.
+@immutable
+class FasanLook extends ThemeExtension<FasanLook> {
+  const FasanLook({
+    required this.style,
+    required this.brightness,
+    required this.level,
+    required this.effects,
+    required this.background,
+    required this.surface,
+    required this.surfaceAlt,
+    required this.text,
+    required this.textMuted,
+    required this.hairline,
+    required this.accent,
+    required this.onAccent,
+    required this.line,
+    required this.glassTint,
+    required this.glassBlur,
+    required this.radius,
+    required this.minTap,
+    required this.fontFamily,
+    required this.monoFamily,
+    required this.fontPackage,
+    this.blobs = const [],
+    this.reduceTransparency = false,
+    this.buttonRadius = 24,
+    this.glowScale = 1,
+  });
+
+  final FasanStyle style;
+  final Brightness brightness;
+  final FasanPowerLevel level;
+  final FilmEffectSettings effects;
+  final Color background, surface, surfaceAlt, text, textMuted, hairline, accent, onAccent;
+
+  /// Colour for overlay lines (machine brackets, sci-fi rules).
+  final Color line;
+
+  /// Tint and blur sigma for glass; blur 0 = opaque panel (Braun, or saving power).
+  final Color glassTint;
+  final double glassBlur;
+  final double radius;
+  final double minTap;
+  final String? fontFamily, monoFamily, fontPackage;
+
+  /// Three colour spots of the animated ground (GESTALTUNG.md §3), already with their opacity. Empty = plain ground.
+  final List<Color> blobs;
+
+  /// Glass drawn opaque (app setting „Transparenz reduzieren“, saving power, or high contrast).
+  final bool reduceTransparency;
+
+  /// Corner radius of buttons; finite so a style change morphs (a pill is minTap / 2 = 24).
+  final double buttonRadius;
+
+  /// 0 = no glow (Braun: light from lamps, not halos) … 1; interpolated on style change.
+  final double glowScale;
+
+  bool get saving => level != FasanPowerLevel.full;
+
+  /// Film effects actually shown: off while saving power (Beschluss 01.11.).
+  bool get effectsActive => effects.any && level == FasanPowerLevel.full;
+
+  static FasanLook of(BuildContext context) =>
+      Theme.of(context).extension<FasanLook>() ?? FasanThemes.look(const FasanSettings(), Brightness.light, FasanPowerLevel.full);
+
+  TextStyle mono(double size, {FontWeight weight = FontWeight.w400, Color? color}) => TextStyle(
+        fontFamily: monoFamily,
+        package: fontPackage,
+        fontSize: size,
+        fontWeight: weight,
+        color: color ?? textMuted,
+        letterSpacing: 0.6,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
+  @override
+  FasanLook copyWith({FasanPowerLevel? level, FilmEffectSettings? effects}) => FasanLook(
+        style: style,
+        brightness: brightness,
+        level: level ?? this.level,
+        effects: effects ?? this.effects,
+        background: background,
+        surface: surface,
+        surfaceAlt: surfaceAlt,
+        text: text,
+        textMuted: textMuted,
+        hairline: hairline,
+        accent: accent,
+        onAccent: onAccent,
+        line: line,
+        glassTint: glassTint,
+        glassBlur: glassBlur,
+        radius: radius,
+        minTap: minTap,
+        fontFamily: fontFamily,
+        monoFamily: monoFamily,
+        fontPackage: fontPackage,
+        blobs: blobs,
+        reduceTransparency: reduceTransparency,
+        buttonRadius: buttonRadius,
+        glowScale: glowScale,
+      );
+
+  @override
+  FasanLook lerp(covariant FasanLook? other, double t) {
+    if (other == null) return this;
+    Color c(Color a, Color b) => Color.lerp(a, b, t)!;
+    return FasanLook(
+      style: t < 0.5 ? style : other.style,
+      brightness: t < 0.5 ? brightness : other.brightness,
+      level: t < 0.5 ? level : other.level,
+      effects: t < 0.5 ? effects : other.effects,
+      background: c(background, other.background),
+      surface: c(surface, other.surface),
+      surfaceAlt: c(surfaceAlt, other.surfaceAlt),
+      text: c(text, other.text),
+      textMuted: c(textMuted, other.textMuted),
+      hairline: c(hairline, other.hairline),
+      accent: c(accent, other.accent),
+      onAccent: c(onAccent, other.onAccent),
+      line: c(line, other.line),
+      glassTint: c(glassTint, other.glassTint),
+      glassBlur: glassBlur + (other.glassBlur - glassBlur) * t,
+      radius: radius + (other.radius - radius) * t,
+      minTap: t < 0.5 ? minTap : other.minTap,
+      fontFamily: t < 0.5 ? fontFamily : other.fontFamily,
+      monoFamily: t < 0.5 ? monoFamily : other.monoFamily,
+      fontPackage: t < 0.5 ? fontPackage : other.fontPackage,
+      blobs: blobs.length == other.blobs.length ? [for (var i = 0; i < blobs.length; i++) c(blobs[i], other.blobs[i])] : (t < 0.5 ? blobs : other.blobs),
+      reduceTransparency: t < 0.5 ? reduceTransparency : other.reduceTransparency,
+      buttonRadius: buttonRadius + (other.buttonRadius - buttonRadius) * t,
+      glowScale: glowScale + (other.glowScale - glowScale) * t,
+    );
+  }
+}
+
+/// Builds looks and ThemeData. All colours live here so styles stay comparable.
+abstract final class FasanThemes {
+  static const _pkg = 'fasan_ui';
+
+  /// Accent fills. Light values are dark enough for white text, dark values light enough for near-black text.
+  static Color accent(FasanAccent a, Brightness b) {
+    final dark = b == Brightness.dark;
+    switch (a) {
+      // Palettes A/B/C, docs/recherche/2026-11-02-farbe-verlauf-aufmerksamkeit.md §5 (contrast values there).
+      case FasanAccent.signal:
+        return dark ? const Color(0xFFFF8A4C) : const Color(0xFFC2410C);
+      case FasanAccent.cobalt:
+        return dark ? const Color(0xFF7C9BFF) : const Color(0xFF2F55D4);
+      case FasanAccent.sage:
+        return dark ? const Color(0xFF7CC4A4) : const Color(0xFF2F6B55);
+    }
+  }
+
+  static FasanLook look(FasanSettings s, Brightness b, FasanPowerLevel level) {
+    // "Akku maximal" prefers dark surfaces: OLED panels draw less power for dark pixels (Apple WWDC22 10083;
+    // for Android not measured here – nicht geprüft). The user's explicit light choice still wins.
+    final dark = b == Brightness.dark;
+    final a = accent(s.accent, b);
+    final onA = dark ? const Color(0xFF0B0B0C) : Colors.white;
+    final (String? family, String mono, String pkg) = switch (s.font) {
+      FasanFont.inter => ('FasanInter', 'FasanGeistMono', _pkg),
+      FasanFont.geist => ('FasanGeist', 'FasanGeistMono', _pkg),
+      FasanFont.system => (null, 'FasanGeistMono', _pkg),
+    };
+    // System font: fontFamily null uses the platform default (Roboto/Google Sans on Android).
+    final blurOk = level == FasanPowerLevel.full;
+    Color tintFor(Color base, double o) => base.withValues(alpha: blurOk ? o : 1);
+    switch (s.style) {
+      case FasanStyle.calmGlass:
+      case FasanStyle.fullGlass:
+        final full = s.style == FasanStyle.fullGlass;
+        // Ground, surface and text per palette (A Papier/Orange, B Nebel/Tiefblau, C Salbei/Ton; GESTALTUNG.md §3).
+        final (Color bg, Color surf, Color tx, Color mu, List<Color> spots) = switch ((s.accent, dark)) {
+          (FasanAccent.signal, false) => (const Color(0xFFF4F2EE), Colors.white, const Color(0xFF1B1B1A), const Color(0xFF5C5A56),
+              [a.withValues(alpha: 0.10), const Color(0x24D9B98C), const Color(0x14E08A8A)]),
+          (FasanAccent.signal, true) => (const Color(0xFF121211), const Color(0xFF1C1B1A), const Color(0xFFEDEBE7), const Color(0xFFA5A29B),
+              [a.withValues(alpha: 0.12), const Color(0x1C8C6A3C), const Color(0x147A3A3A)]),
+          (FasanAccent.cobalt, false) => (const Color(0xFFF5F6F8), Colors.white, const Color(0xFF14161A), const Color(0xFF555B66),
+              [a.withValues(alpha: 0.12), const Color(0x24A9D3EE), const Color(0x14B9A6E8)]),
+          (FasanAccent.cobalt, true) => (const Color(0xFF0E1014), const Color(0xFF171A20), const Color(0xFFE8EAEE), const Color(0xFF9AA1AD),
+              [a.withValues(alpha: 0.14), const Color(0x1C2E6E8E), const Color(0x16584A9A)]),
+          (FasanAccent.sage, false) => (const Color(0xFFF6F5F1), Colors.white, const Color(0xFF1D211E), const Color(0xFF575D58),
+              [a.withValues(alpha: 0.10), const Color(0x1FC9A27E), const Color(0x149AAE6A)]),
+          (FasanAccent.sage, true) => (const Color(0xFF101412), const Color(0xFF181D1A), const Color(0xFFE6EAE6), const Color(0xFF9AA39C),
+              [a.withValues(alpha: 0.12), const Color(0x1C7A5A3E), const Color(0x14506A34)]),
+        };
+        final opaque = s.reduceTransparency || !blurOk;
+        return FasanLook(
+          style: s.style, brightness: b, level: level, effects: s.effects,
+          background: bg, surface: surf,
+          surfaceAlt: Color.lerp(surf, tx, dark ? 0.06 : 0.045)!,
+          text: tx,
+          textMuted: mu,
+          hairline: dark ? const Color(0x24FFFFFF) : const Color(0x1A000000),
+          accent: a, onAccent: onA,
+          line: dark ? const Color(0x55FFFFFF) : const Color(0x44000000),
+          glassTint: opaque ? surf : surf.withValues(alpha: full ? 0.42 : 0.62),
+          glassBlur: opaque ? 0 : (full ? 28 : 18),
+          radius: full ? FasanRadius.xl : FasanRadius.l,
+          minTap: s.minTap, fontFamily: family, monoFamily: mono, fontPackage: pkg,
+          blobs: spots, reduceTransparency: opaque,
+        );
+      case FasanStyle.braun:
+        return FasanLook(
+          style: s.style, brightness: b, level: level, effects: s.effects,
+          background: dark ? const Color(0xFF1B1B1A) : const Color(0xFFE9E8E3),
+          surface: dark ? const Color(0xFF262624) : const Color(0xFFF6F5F0),
+          surfaceAlt: dark ? const Color(0xFF30302D) : const Color(0xFFDDDCD6),
+          text: dark ? const Color(0xFFEDECE6) : const Color(0xFF1A1A19),
+          textMuted: dark ? const Color(0xFFABAAA3) : const Color(0xFF5A5954),
+          hairline: dark ? const Color(0xFF3B3B38) : const Color(0xFFC6C5BE),
+          accent: a, onAccent: onA,
+          line: dark ? const Color(0xFF4A4A46) : const Color(0xFFB5B4AD),
+          glassTint: dark ? const Color(0xFF262624) : const Color(0xFFF6F5F0),
+          glassBlur: 0,
+          radius: FasanRadius.s,
+          minTap: s.minTap, fontFamily: family, monoFamily: mono, fontPackage: pkg,
+          buttonRadius: FasanRadius.s, glowScale: 0,
+        );
+      case FasanStyle.machine:
+      case FasanStyle.sciFi:
+      case FasanStyle.spy:
+        // Cinematic styles: serious, high contrast, line work instead of decoration. Light variants exist for text.
+        final (Color bgD, Color sfD, Color txD, Color lnD, Color bgL, Color sfL, Color txL, Color lnL) = switch (s.style) {
+          FasanStyle.machine => (
+              const Color(0xFF0D0F10), const Color(0xFF161A1C), const Color(0xFFE4E7E1), const Color(0xFF9FB3A6),
+              const Color(0xFFEEF0EC), const Color(0xFFFAFBF9), const Color(0xFF131615), const Color(0xFF52665A)),
+          FasanStyle.sciFi => (
+              const Color(0xFF050912), const Color(0xFF0C1322), const Color(0xFFDDE8FF), const Color(0xFF6FC7FF),
+              const Color(0xFFEFF3FA), const Color(0xFFFFFFFF), const Color(0xFF0C1424), const Color(0xFF2A6FA8)),
+          _ => (
+              const Color(0xFF0C0A09), const Color(0xFF171311), const Color(0xFFECE5DE), const Color(0xFFB8463C),
+              const Color(0xFFF1EDE8), const Color(0xFFFBF9F6), const Color(0xFF1A1513), const Color(0xFF9A3229)),
+        };
+        return FasanLook(
+          style: s.style, brightness: b, level: level, effects: s.effects,
+          background: dark ? bgD : bgL,
+          surface: dark ? sfD : sfL,
+          surfaceAlt: Color.lerp(dark ? sfD : sfL, dark ? lnD : lnL, 0.08)!,
+          text: dark ? txD : txL,
+          textMuted: Color.lerp(dark ? txD : txL, dark ? bgD : bgL, 0.32)!,
+          hairline: (dark ? lnD : lnL).withValues(alpha: 0.28),
+          accent: a, onAccent: onA,
+          line: dark ? lnD : lnL,
+          glassTint: tintFor(dark ? sfD : sfL, 0.78),
+          glassBlur: blurOk ? 12 : 0,
+          radius: FasanRadius.s,
+          minTap: s.minTap, fontFamily: family, monoFamily: mono, fontPackage: pkg,
+          buttonRadius: FasanRadius.s,
+        );
+    }
+  }
+
+  static ThemeData theme(FasanSettings s, Brightness b, FasanPowerLevel level) {
+    final l = look(s, b, level);
+    final scheme = ColorScheme(
+      brightness: b,
+      primary: l.accent,
+      onPrimary: l.onAccent,
+      secondary: l.accent,
+      onSecondary: l.onAccent,
+      error: b == Brightness.dark ? const Color(0xFFFF8A80) : const Color(0xFFB3261E),
+      onError: b == Brightness.dark ? const Color(0xFF2B0B08) : Colors.white,
+      surface: l.surface,
+      onSurface: l.text,
+      onSurfaceVariant: l.textMuted,
+      outline: l.hairline,
+      outlineVariant: l.hairline,
+      surfaceContainerHighest: l.surfaceAlt,
+    );
+    final scale = s.simpleProfile ? 1.12 : 1.0;
+    // Package fonts are addressed as 'packages/<package>/<family>' (api.flutter.dev, TextStyle "Font family" / package).
+    final family = l.fontFamily == null ? null : 'packages/${l.fontPackage}/${l.fontFamily}';
+    final base = ThemeData(
+      useMaterial3: true,
+      colorScheme: scheme,
+      // Pages are transparent: the ground (FasanBackdrop, layer 0) lies behind the Navigator (GESTALTUNG.md §2).
+      // Apps put FasanBackdrop into MaterialApp.builder.
+      scaffoldBackgroundColor: Colors.transparent,
+      canvasColor: l.background,
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: FasanPageTransitionsBuilder(),
+        TargetPlatform.iOS: FasanPageTransitionsBuilder(),
+        TargetPlatform.linux: FasanPageTransitionsBuilder(),
+      }),
+      fontFamily: family,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+      splashFactory: InkSparkle.splashFactory,
+      dividerColor: l.hairline,
+      extensions: [l],
+    );
+    TextStyle t(double size, FontWeight w, {double h = 1.3, double ls = 0, Color? c}) =>
+        // fontFamily must be repeated: these styles replace the ones ThemeData(fontFamily:) filled in, and a new
+        // TextStyle without a family falls back to the platform font (bug in 0.1: Inter/Geist never showed).
+        TextStyle(fontFamily: family, fontSize: size * scale, fontWeight: w, height: h, letterSpacing: ls, color: c ?? l.text);
+    // Norm (Nutzer 02.11.: „beim Wechseln der Stile springt die Anzeige“): every style has the same text metrics –
+    // size, line height, letter spacing. Styles differ in colour, material and font family only; geometry that must
+    // differ (radii, glow) lives in FasanLook and is interpolated by AnimatedTheme (MaterialApp.themeAnimationDuration).
+    return base.copyWith(
+      textTheme: base.textTheme.copyWith(
+        displaySmall: t(34, FontWeight.w600, h: 1.1, ls: -0.6),
+        headlineSmall: t(24, FontWeight.w600, h: 1.15, ls: -0.3),
+        titleLarge: t(20, FontWeight.w600, h: 1.2, ls: -0.2),
+        titleMedium: t(16, FontWeight.w600),
+        bodyLarge: t(16, FontWeight.w400, h: 1.4),
+        bodyMedium: t(14, FontWeight.w400, h: 1.4),
+        bodySmall: t(12.5, FontWeight.w400, c: l.textMuted),
+        labelLarge: t(15, FontWeight.w600, ls: 0.1),
+        labelMedium: t(13, FontWeight.w500, c: l.textMuted, ls: 0.1),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: l.accent,
+        thumbColor: l.accent,
+        inactiveTrackColor: l.hairline,
+        overlayColor: l.accent.withValues(alpha: 0.12),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? l.onAccent : l.textMuted),
+        trackColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? l.accent : l.surfaceAlt),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: l.surfaceAlt,
+        // Not OutlineInputBorder: with an outline the floating label is centred on the top edge, half outside the
+        // filled field, and gets clipped at the top of a list (Flutter input_decorator.dart, outlinedFloatingY).
+        border: UnderlineInputBorder(borderRadius: BorderRadius.circular(l.radius * 0.6), borderSide: BorderSide.none),
+        enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(l.radius * 0.6), borderSide: BorderSide.none),
+        // Visible focus (WCAG 2.4.7): accent line at the bottom edge.
+        focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(l.radius * 0.6), borderSide: BorderSide(color: l.accent, width: 2)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: l.text,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: t(20, FontWeight.w600, ls: -0.2),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: l.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(l.radius))),
+        showDragHandle: true,
+      ),
+      // Overlays follow the style (Nutzer 02.11.: „dunkle Block-Overlays“): surface colour, hairline, the style's radius.
+      // The default dark snack bar (inverseSurface) was a black block in every style.
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: l.surface,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius * 0.8), side: BorderSide(color: l.hairline)),
+        contentTextStyle: t(14, FontWeight.w500),
+        actionTextColor: l.accent,
+        disabledActionTextColor: l.textMuted,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: l.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius), side: BorderSide(color: l.hairline)),
+        titleTextStyle: t(20, FontWeight.w600, ls: -0.2),
+        contentTextStyle: t(14, FontWeight.w400, h: 1.4),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: l.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius * 0.8), side: BorderSide(color: l.hairline)),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(color: l.surface, borderRadius: BorderRadius.circular(l.radius * 0.5), border: Border.all(color: l.hairline)),
+        textStyle: t(12.5, FontWeight.w500),
+      ),
+      // Selection shows by colour only: a check mark made chips wider and the list below jumped (Nutzer 02.11.).
+      chipTheme: ChipThemeData(
+        showCheckmark: false,
+        backgroundColor: l.surfaceAlt,
+        selectedColor: l.accent.withValues(alpha: 0.18),
+        side: BorderSide(color: l.hairline),
+        labelStyle: t(13, FontWeight.w500),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(l.radius * 0.7)),
+      ),
+      iconTheme: IconThemeData(color: l.text, size: 22),
+    );
+  }
+}
